@@ -75,7 +75,10 @@ def lexical_distance(text_a: str, text_b: str) -> float | None:
     norm_b = math.sqrt(sum(value * value for value in counts_b.values()))
     if not norm_a or not norm_b:
         return None
-    return max(0.0, min(1.0, 1.0 - dot / (norm_a * norm_b)))
+    distance = 1.0 - dot / (norm_a * norm_b)
+    if distance < 1e-12:
+        return 0.0
+    return max(0.0, min(1.0, distance))
 
 
 def judge_prompt(answer: str) -> str:

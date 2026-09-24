@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import collections
 import datetime as dt
+import itertools
 import json
 import pathlib
 import sys
@@ -183,17 +184,17 @@ def summarise(results: list[dict]) -> dict:
         cross_here = [row["score"]["divergence"] for row in reps
                       if row["score"]["divergence"] is not None]
 
-        # Noise floor: identity A against identity A. Replicates 1v2 and 3v4 give two independent
-        # floor samples per pair out of calls that were already made.
+        # Noise floor: identity A against identity A, over every replicate pair. Using all
+        # combinations rather than two fixed ones keeps the floor as well sampled as the cross
+        # term it is subtracted from. An under-sampled floor can manufacture a small excess
+        # out of nothing, which is the one way this harness could overstate a result.
         floor_here: list[float] = []
-        for left, right in ((0, 1), (2, 3)):
-            if len(reps) > right:
-                scored = scoring.components(reps[left]["a"], reps[right]["a"], pair["scale"])
-                if scored["divergence"] is not None:
-                    floor_here.append(scored["divergence"])
-                    for name, value in scored["parts"].items():
-                        parts_floor[name].append(value)
-
+        for left, right in itertools.combinations(range(len(reps)), 2):
+            scored = scoring.components(reps[left]["a"], reps[right]["a"], pair["scale"])
+            if scored["divergence"] is not None:
+                floor_here.append(scored["divergence"])
+                for name, value in scored["parts"].items():
+                    parts_floor[name].append(value)
         mean_cross = scoring.mean(cross_here)
         mean_floor = scoring.mean(floor_here)
         gap = (mean_cross - mean_floor) if (mean_cross is not None and mean_floor is not None) else None

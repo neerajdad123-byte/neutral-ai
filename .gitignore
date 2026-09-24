@@ -9,3 +9,5 @@ reports/live.log
 .ok/state/
 .claude/settings.local.json
 
+reports/*.log
+reports/*.err

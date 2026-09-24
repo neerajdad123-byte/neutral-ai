@@ -1,0 +1,25 @@
+# .okignore — paths to exclude from the OpenKnowledge document index.
+# Uses gitignore syntax (parsed by the `ignore` npm library), evaluated
+# alongside .gitignore in a single ignore-lib instance.
+#
+# Patterns combine with .gitignore: an entry here adds to exclusions, and
+# a leading `!` re-includes a file that .gitignore excluded.
+# Nested .okignore files at any folder depth are honored (mirrors .gitignore).
+
+# The API key must never enter the index, the CRDT layer, or git history.
+.env
+.env.*
+!.env.example
+
+# Local state and noise: not knowledge, and it churns.
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+uv.lock
+
+# Raw model output is bulky and reproducible from the harness.
+results/raw/
+reports/*.log
+reports/*.err

@@ -25,7 +25,7 @@ def list_models(base_url: str, api_key: str) -> list[str]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--models", default="", help="comma separated; default is every advertised model")
+    parser.add_argument("--models", default="", help="comma separated; default is GEN_MODEL from .env")
     args = parser.parse_args(argv)
 
     cfg = config.settings()
@@ -35,7 +35,7 @@ def main(argv: list[str] | None = None) -> int:
 
     advertised = list_models(cfg["base_url"], cfg["api_key"])
     print("advertised models: %s" % ", ".join(advertised))
-    models = [name.strip() for name in args.models.split(",") if name.strip()] or advertised
+    models = [name.strip() for name in args.models.split(",") if name.strip()] or [cfg["gen_model"]]
 
     for model in models:
         wall_start = time.time()

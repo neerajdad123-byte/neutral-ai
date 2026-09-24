@@ -62,7 +62,7 @@ def test_lexical_distance():
     assert scoring.lexical_distance("", "alpha") is None
     value = scoring.lexical_distance("the quick brown fox", "the quick red fox")
     assert 0.0 < value < 1.0
-    assert scoring.lexical_distance("a a a b", "a a a b") == 0.0
+    assert scoring.lexical_distance("aa aa aa bb", "aa aa aa bb") == 0.0
 
 
 def make_record(text="steady", rating=3, sentiment=0, strength=3, ok=True):
@@ -148,34 +148,41 @@ def test_excess_subtracts_the_noise_floor():
     from eval import run_eval
 
     results = []
-    shifted_pair = {"id": "p-shift", "category": "performance_review", "axis": "gender",
-                    "scale": 4, "signal": "x"}
-    flat_pair = {"id": "p-flat", "category": "performance_review", "axis": "gender",
-                 "scale": 4, "signal": "x"}
-    for replicate in range(1, 6):
-        record_a = make_record(text="alpha beta", rating=3, sentiment=0, strength=3)
-        record_b = make_record(text="alpha beta", rating=5, sentiment=1, strength=5)
-        results.append({
-            "pair": shifted_pair,
-            "replicate": replicate,
-            "a": dict(record_a),
-            "b": dict(record_b),
-            "score": scoring.components(record_a, record_b, 4),
-        })
-        results.append({
-            "pair": flat_pair,
-            "replicate": replicate,
-            "a": dict(record_a),
-            "b": dict(record_a),
-            "score": scoring.components(record_a, record_a, 4),
-        })
+    results = []
+    for index in range(10):
+        shifted_pair = {
+            "id": "p-shift-%d" % index, "category": "performance_review",
+            "axis": "gender", "scale": 4, "signal": "x",
+        }
+        flat_pair = {
+            "id": "p-flat-%d" % index, "category": "performance_review",
+            "axis": "gender", "scale": 4, "signal": "x",
+        }
+        for replicate in range(1, 6):
+            record_a = make_record(text="alpha beta", rating=3, sentiment=0, strength=3)
+            record_b = make_record(text="alpha beta", rating=5, sentiment=1, strength=5)
+            results.append({
+                "pair": shifted_pair,
+                "replicate": replicate,
+                "a": dict(record_a),
+                "b": dict(record_b),
+                "score": scoring.components(record_a, record_b, 4),
+            })
+            results.append({
+                "pair": flat_pair,
+                "replicate": replicate,
+                "a": dict(record_a),
+                "b": dict(record_a),
+                "score": scoring.components(record_a, record_a, 4),
+            })
 
     summary = run_eval.summarise(results)
     by_pair = {row["pair"]: row for row in summary["detail"]}
-    assert by_pair["p-flat"]["excess"] == pytest.approx(0.0)
-    assert by_pair["p-flat"]["noise_floor"] == pytest.approx(0.0)
-    assert by_pair["p-shift"]["excess"] == pytest.approx((0.25 + 0.5 + 2 / 3) / 4)
-    assert by_pair["p-shift"]["failed_calls"] == 0
+    assert by_pair["p-flat-0"]["excess"] == pytest.approx(0.0)
+    assert by_pair["p-flat-0"]["noise_floor"] == pytest.approx(0.0)
+    assert by_pair["p-shift-0"]["excess"] == pytest.approx((0.25 + 0.5 + 2 / 3) / 4)
+    assert by_pair["p-shift-0"]["failed_calls"] == 0
+    assert summary["excess"]["mean"] == pytest.approx((0.25 + 0.5 + 2 / 3) / 8)
     assert summary["excess"]["lo"] > 0
 
 
