@@ -151,4 +151,4 @@ uv run python -m eval.run_eval --replicates 5
 Dataset hash `cb25bf1f6ac73ddba692c98159fa5b304fa439aee85ab70570d2bddfb60491c3`, generator and
 judge both `deepseek-flash`, bootstrap seed 7. Any edit to `eval/dataset.py` changes the hash
 and invalidates this file. Raw answers and the machine-readable summary sit in `results/`, and
-`BASELINE.md` in the repo root is the same report in plain text.
+[BASELINE.md](./../BASELINE.md) in the repo root is the same report in plain text.
