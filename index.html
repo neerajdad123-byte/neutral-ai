@@ -1,0 +1,812 @@
+<title>Neutral</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+
+<style>
+/* ── tokens ───────────────────────────────────────────────────────────── */
+:root{
+  color-scheme: light;
+
+  --paper:#F1F3EF;
+  --paper-a:rgba(241,243,239,.88);
+  --surface:#FFFFFF;
+  --surface-2:#E7EAE4;
+
+  --ink:#141816;
+  --ink-2:#4E5651;
+  --ink-3:#79827B;
+
+  --rule:#D6DBD4;
+  --rule-strong:#B9C1B7;
+
+  --accent:#2438B8;
+  --accent-wash:rgba(36,56,184,.09);
+
+  /* The two demo panels are objects with their own material, so they keep a
+     fixed sub-palette in both viewer themes: a sheet of paper and a machine. */
+  --doc-bg:#EFF1EC;
+  --doc-ink:#161A18;
+  --doc-ink-2:#5C645E;
+  --doc-rule:#D2D8CF;
+  --doc-accent:#2438B8;
+  --doc-cut:rgba(116,127,118,.20);
+  --doc-add:rgba(36,56,184,.15);
+
+  --model-bg:#0B100E;
+  --model-ink:#DFE7E0;
+  --model-ink-2:#8A958D;
+  --model-rule:#222B26;
+  --model-accent:#93A3FF;
+  --model-cut:rgba(158,170,161,.14);
+  --model-add:rgba(147,163,255,.16);
+
+  --font-display:'Familjen Grotesk','Helvetica Neue',Arial,sans-serif;
+  --font-body:'Public Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Consolas,monospace;
+
+  --rhythm:clamp(72px,9vw,132px);
+  --gut:clamp(20px,4vw,40px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --paper:#0C110F;
+    --paper-a:rgba(12,17,15,.88);
+    --surface:#141A17;
+    --surface-2:#1B2320;
+    --ink:#E6ECE7;
+    --ink-2:#A2ACA4;
+    --ink-3:#748077;
+    --rule:#242D28;
+    --rule-strong:#3A463F;
+    --accent:#93A3FF;
+    --accent-wash:rgba(147,163,255,.13);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --paper:#0C110F;
+  --paper-a:rgba(12,17,15,.88);
+  --surface:#141A17;
+  --surface-2:#1B2320;
+  --ink:#E6ECE7;
+  --ink-2:#A2ACA4;
+  --ink-3:#748077;
+  --rule:#242D28;
+  --rule-strong:#3A463F;
+  --accent:#93A3FF;
+  --accent-wash:rgba(147,163,255,.13);
+}
+
+/* ── base ─────────────────────────────────────────────────────────────── */
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--font-body);
+  font-size:1.0625rem;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:700;letter-spacing:-.018em;text-wrap:balance;margin:0}
+p{margin:0}
+a{color:inherit}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:1px}
+svg{display:block}
+
+.wrap{max-width:1140px;margin-inline:auto;padding-inline:var(--gut)}
+.prose{max-width:64ch}
+.mono{font-family:var(--font-mono);font-size:.75rem;letter-spacing:.07em;text-transform:uppercase}
+
+/* ── header ───────────────────────────────────────────────────────────── */
+.hdr{
+  position:sticky;top:env(safe-area-inset-top,0px);z-index:40;
+  background:var(--paper-a);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--rule);
+}
+.hdr-in{display:flex;align-items:center;gap:28px;min-height:62px;padding-block:10px}
+.brand{display:flex;align-items:center;gap:9px;font-family:var(--font-display);font-weight:700;font-size:1.075rem;letter-spacing:-.02em;text-decoration:none}
+.brand svg{flex:none}
+.hdr-nav{display:none;gap:24px;margin-left:auto;font-size:.9rem;color:var(--ink-2)}
+@media (min-width:800px){.hdr-nav{display:flex}}
+.hdr-nav a{text-decoration:none;padding-block:4px;border-bottom:1px solid transparent}
+.hdr-nav a:hover{color:var(--ink);border-bottom-color:var(--rule-strong)}
+.hdr .btn{margin-left:4px}
+
+/* ── buttons ──────────────────────────────────────────────────────────── */
+.btn{
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:.9rem;font-weight:500;line-height:1;
+  padding:13px 20px;border:1px solid transparent;border-radius:2px;
+  text-decoration:none;transition:background .14s,border-color .14s,color .14s;
+}
+/* --paper and --ink both flip with the theme, so a token pair is all either
+   state needs: no theme-scoped overrides to get out of sync. */
+.btn-p{background:var(--accent);color:var(--paper)}
+.btn-p:hover{background:var(--ink);color:var(--paper)}
+.btn-s{border-color:var(--rule-strong);color:var(--ink)}
+.btn-s:hover{border-color:var(--ink);background:var(--accent-wash)}
+
+/* ── hero ─────────────────────────────────────────────────────────────── */
+.hero{padding-block:clamp(48px,6vw,80px) clamp(40px,5vw,64px)}
+.eyebrow{
+  display:flex;align-items:center;gap:10px;
+  font-family:var(--font-mono);font-size:.75rem;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--ink-2);margin-bottom:22px;
+}
+.eyebrow::before{content:"";width:22px;height:1px;background:var(--accent);flex:none}
+.hero h1{font-size:clamp(2.35rem,5.4vw,4.15rem);line-height:1.03;max-width:880px}
+.hero .lede{margin-top:26px;max-width:58ch;font-size:clamp(1rem,1.35vw,1.175rem);color:var(--ink-2)}
+.hero .cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px}
+.hero .foot{
+  margin-top:30px;padding-top:16px;border-top:1px solid var(--rule);
+  font-family:var(--font-mono);font-size:.78rem;color:var(--ink-3);max-width:62ch;
+}
+
+/* ── sections ─────────────────────────────────────────────────────────── */
+.section{padding-block:var(--rhythm)}
+.section + .section{border-top:1px solid var(--rule)}
+.sec-head{display:grid;gap:14px;margin-bottom:clamp(34px,4vw,52px)}
+@media (min-width:920px){
+  .sec-head{grid-template-columns:168px 1fr;gap:40px;align-items:start}
+  .sec-head .eyebrow{margin:6px 0 0}
+}
+.sec-head h2{font-size:clamp(1.7rem,3.2vw,2.5rem);line-height:1.1;max-width:24ch}
+.sec-head .lede{margin-top:18px;color:var(--ink-2);max-width:58ch}
+
+/* ── segmented control ────────────────────────────────────────────────── */
+.seg{display:inline-flex;border:1px solid var(--rule-strong);border-radius:2px;overflow:hidden}
+.seg button{
+  font-family:var(--font-mono);font-size:.72rem;letter-spacing:.05em;text-transform:uppercase;
+  padding:8px 13px;color:var(--ink-3);border-right:1px solid var(--rule-strong);
+  transition:background .14s,color .14s;
+}
+.seg button:last-child{border-right:0}
+.seg button:hover{color:var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--paper)}
+
+/* ── the transformer demo ─────────────────────────────────────────────── */
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px}
+.tabs button{
+  font-size:.875rem;padding:9px 15px;border:1px solid var(--rule);border-radius:2px;
+  color:var(--ink-2);transition:border-color .14s,color .14s,background .14s;
+}
+.tabs button:hover{border-color:var(--rule-strong);color:var(--ink)}
+.tabs button[aria-pressed="true"]{border-color:var(--ink);color:var(--ink);background:var(--surface);font-weight:500}
+
+.demo-bar{
+  display:flex;flex-wrap:wrap;align-items:center;gap:14px 20px;
+  padding-bottom:12px;margin-bottom:0;
+}
+.demo-bar .case{font-size:.9rem;color:var(--ink-2);flex:1 1 260px;min-width:0}
+.demo-bar .changes{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+
+.panes{display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:2px;overflow:hidden}
+@media (min-width:820px){.panes{grid-template-columns:1fr 1fr}}
+.pane{padding:24px 24px 28px;min-width:0}
+.pane-doc{background:var(--doc-bg);color:var(--doc-ink)}
+.pane-model{background:var(--model-bg);color:var(--model-ink)}
+.pane-lab{
+  font-family:var(--font-mono);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;
+  padding-bottom:10px;margin-bottom:16px;border-bottom:1px solid;
+}
+.pane-doc .pane-lab{color:var(--doc-ink-2);border-color:var(--doc-rule)}
+.pane-model .pane-lab{color:var(--model-ink-2);border-color:var(--model-rule)}
+.pane-txt{font-family:var(--font-mono);font-size:.875rem;line-height:1.75;word-break:break-word}
+.pane-doc .cut{color:var(--doc-ink-2);background:var(--doc-cut);text-decoration:line-through;text-decoration-thickness:1px}
+.pane-doc .add{color:var(--doc-accent);background:var(--doc-add);font-weight:500}
+.pane-model .cut{color:var(--model-ink-2);background:var(--model-cut);text-decoration:line-through;text-decoration-thickness:1px}
+.pane-model .add{color:var(--model-accent);background:var(--model-add);font-weight:500}
+
+.pane-note{
+  margin-top:1px;padding:18px 24px;background:var(--surface);border:1px solid var(--rule);border-top:0;
+  border-radius:0 0 2px 2px;font-size:.9rem;color:var(--ink-2);max-width:none;
+}
+.pane-note b{color:var(--ink);font-weight:600}
+
+/* ── leakage taxonomy ─────────────────────────────────────────────────── */
+.leaks{display:grid;gap:1px;background:var(--rule);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+@media (min-width:840px){.leaks{grid-template-columns:repeat(3,1fr)}}
+.leak{background:var(--paper);padding:28px 26px 30px}
+.leak h3{font-size:1.175rem}
+.leak .tokens{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0 18px}
+.leak .tokens span{
+  font-family:var(--font-mono);font-size:.75rem;padding:4px 8px;
+  background:var(--accent-wash);color:var(--accent);border-radius:1px;
+}
+.leak p{font-size:.925rem;color:var(--ink-2)}
+.leak-close{margin-top:28px;font-size:.95rem;color:var(--ink-2);max-width:62ch}
+
+/* ── pipeline figure ──────────────────────────────────────────────────── */
+.fig{margin:0}
+.fig-scroll{overflow-x:auto;padding-bottom:6px}
+.fig svg{width:100%;min-width:860px;height:auto}
+.dg rect{fill:var(--surface);stroke:var(--rule-strong);stroke-width:1}
+.dg rect.acc{stroke:var(--accent);stroke-width:1.5;fill:var(--accent-wash)}
+.dg rect.ghost{fill:none;stroke-dasharray:3 3}
+.dg text{font-family:var(--font-mono);font-size:14px;fill:var(--ink)}
+.dg text.dim{fill:var(--ink-2)}
+.dg text.lbl{font-size:11.5px;fill:var(--ink-3)}
+.dg line,.dg path.fl{fill:none;stroke:var(--rule-strong);stroke-width:1.25}
+.dg path.ret{fill:none;stroke:var(--accent);stroke-width:1.25;stroke-dasharray:4 3}
+.figcap{
+  margin-top:20px;font-size:.875rem;color:var(--ink-3);max-width:66ch;
+  padding-top:14px;border-top:1px solid var(--rule);
+}
+.steps{margin-top:clamp(30px,4vw,44px);display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule)}
+@media (min-width:800px){.steps{grid-template-columns:repeat(3,1fr)}}
+.step{background:var(--paper);padding:24px}
+.step .mono{color:var(--accent);display:block;margin-bottom:12px}
+.step h3{font-size:1.075rem;margin-bottom:10px}
+.step p{font-size:.925rem;color:var(--ink-2)}
+
+/* ── pairing specimen ─────────────────────────────────────────────────── */
+.pairs{border:1px solid var(--rule);border-radius:2px;background:var(--surface);overflow:hidden}
+.pair{
+  display:grid;grid-template-columns:1fr auto;gap:12px 18px;align-items:center;
+  padding:17px 20px;border-bottom:1px solid var(--rule);
+}
+.pair:last-of-type{border-bottom:0}
+.pair p{font-family:var(--font-mono);font-size:.85rem;line-height:1.6;color:var(--ink);min-width:0}
+.pair .lead{
+  font-family:var(--font-mono);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;
+  padding:4px 9px;border:1px solid var(--rule-strong);border-radius:1px;color:var(--ink-2);white-space:nowrap;
+}
+.pair .lead.a{color:var(--accent);border-color:var(--accent)}
+.balance{padding:20px;border-top:1px solid var(--rule);background:var(--surface-2);display:grid;gap:12px}
+.bal-row{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center}
+.bal-lab{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-2);white-space:nowrap}
+.bal-bar{height:6px;background:var(--rule);border-radius:1px;overflow:hidden}
+.bal-bar i{display:block;height:100%;background:var(--accent)}
+.bal-num{font-family:var(--font-mono);font-size:.82rem;font-variant-numeric:tabular-nums;color:var(--ink)}
+.balance .verdict{
+  font-family:var(--font-mono);font-size:.72rem;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--accent);padding-top:4px;border-top:1px solid var(--rule);
+}
+
+/* ── return pass ──────────────────────────────────────────────────────── */
+.ret{border:1px solid var(--rule);border-radius:2px;background:var(--surface);overflow:hidden}
+.ret-head{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--rule)}
+.ret-head .mono{color:var(--ink-3)}
+.ret-body{padding:24px 20px 26px;font-size:1rem;line-height:1.72;min-height:150px}
+.ret-body .u{background:var(--accent-wash);color:var(--accent);font-weight:500;padding:0 2px}
+.ret-foot{padding:14px 20px;border-top:1px solid var(--rule);background:var(--surface-2);font-size:.82rem;color:var(--ink-2)}
+
+/* ── limits ───────────────────────────────────────────────────────────── */
+.limits{display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule)}
+@media (min-width:760px){.limits{grid-template-columns:1fr 1fr}}
+.limit{background:var(--paper);padding:26px 24px}
+.limit h3{font-size:1.05rem;margin-bottom:10px}
+.limit p{font-size:.925rem;color:var(--ink-2)}
+
+/* ── pilot ────────────────────────────────────────────────────────────── */
+.pilot{background:var(--surface);border:1px solid var(--rule);border-radius:2px;padding:clamp(30px,4vw,52px)}
+.pilot h2{font-size:clamp(1.7rem,3.2vw,2.4rem);max-width:18ch}
+.pilot .lede{margin-top:18px;color:var(--ink-2);max-width:56ch}
+.pilot-grid{display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);margin-top:34px}
+@media (min-width:760px){.pilot-grid{grid-template-columns:repeat(3,1fr)}}
+.pilot-grid div{background:var(--surface);padding:22px}
+.pilot-grid .mono{color:var(--accent);display:block;margin-bottom:10px}
+.pilot-grid p{font-size:.9rem;color:var(--ink-2)}
+.pilot-act{display:flex;flex-wrap:wrap;align-items:center;gap:16px;margin-top:34px;padding-top:26px;border-top:1px solid var(--rule)}
+.pilot-act .addr{font-family:var(--font-mono);font-size:.82rem;color:var(--ink-2)}
+
+/* ── footer ───────────────────────────────────────────────────────────── */
+.foot{border-top:1px solid var(--rule);padding-block:34px 46px}
+.foot-in{display:flex;flex-wrap:wrap;gap:16px 32px;align-items:center}
+.foot-in .brand{font-size:1rem}
+.foot-nav{display:flex;flex-wrap:wrap;gap:20px;margin-left:auto;font-size:.875rem;color:var(--ink-2)}
+.foot-nav a{text-decoration:none}
+.foot-nav a:hover{color:var(--ink)}
+.foot-note{margin-top:20px;font-family:var(--font-mono);font-size:.72rem;color:var(--ink-3)}
+
+@media (prefers-reduced-motion:reduce){*{transition-duration:.01ms !important;animation-duration:.01ms !important}}
+</style>
+
+<header class="hdr">
+  <div class="wrap hdr-in">
+    <a class="brand" href="#top">
+      <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+        <path d="M5 4v16M19 4v16" stroke="currentColor" stroke-width="1.7" fill="none"/>
+        <path d="M8 12h8" stroke="currentColor" stroke-width="1.4" opacity=".38" fill="none"/>
+        <path d="M7.6 9.3 16.4 14.7" stroke="var(--accent)" stroke-width="1.7" fill="none" stroke-linecap="round"/>
+      </svg>
+      Neutral
+    </a>
+    <nav class="hdr-nav">
+      <a href="#examples">Examples</a>
+      <a href="#method">Method</a>
+      <a href="#pairing">Pairing</a>
+      <a href="#limits">Limits</a>
+    </nav>
+    <a class="btn btn-p" href="#pilot">Book a pilot</a>
+  </div>
+</header>
+
+<main id="top">
+
+  <section class="hero">
+    <div class="wrap">
+      <p class="eyebrow">Prompt-side bias reduction</p>
+      <h1>Every detail in a prompt is an instruction.</h1>
+      <p class="lede">A model reads a name, a job title, a word like <em>boyfriend</em>, and fills in the rest. Some of what it fills in changes the answer. Neutral sits between your people and the model, removes the detail the question does not need, and hands the answer back in their own words.</p>
+      <div class="cta">
+        <a class="btn btn-p" href="#pilot">Book a pilot</a>
+        <a class="btn btn-s" href="#method">See the method</a>
+      </div>
+      <p class="foot">Runs in front of the models you already use. Hosted or in your own tenancy.</p>
+    </div>
+  </section>
+
+  <section class="section" id="examples">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">Worked examples</p>
+        <div>
+          <h2>What your employee writes, and what the model reads.</h2>
+          <p class="lede">Four prompts, before and after. Struck text is dropped before the request leaves; blue text is what replaces it. Nothing else in the prompt is touched.</p>
+        </div>
+      </div>
+
+      <div class="tabs" role="group" aria-label="Example prompts" id="tabs"></div>
+
+      <div class="demo-bar">
+        <p class="case" id="caseLine"></p>
+        <span class="changes" id="changeLine"></span>
+        <div class="seg" role="group" aria-label="Right-hand pane shows">
+          <button id="vw-diff" aria-pressed="true">Show the edits</button>
+          <button id="vw-clean" aria-pressed="false">Clean prompt</button>
+        </div>
+      </div>
+
+      <div class="panes">
+        <div class="pane pane-doc">
+          <p class="pane-lab">What the employee types</p>
+          <p class="pane-txt" id="txtWritten"></p>
+        </div>
+        <div class="pane pane-model">
+          <p class="pane-lab">What the model actually reads</p>
+          <p class="pane-txt" id="txtModel"></p>
+        </div>
+      </div>
+      <p class="pane-note" id="noteLine"></p>
+    </div>
+  </section>
+
+  <section class="section" id="method">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">Method</p>
+        <div>
+          <h2>Three ways a prompt carries what it should not.</h2>
+          <p class="lede">Only the first one is visible to the person writing it. The other two are why dropping names is not enough on its own.</p>
+        </div>
+      </div>
+
+      <div class="leaks">
+        <div class="leak">
+          <h3>Stated</h3>
+          <div class="tokens"><span>Jabari</span><span>Embla</span><span>my boyfriend</span><span>I'm the CEO</span></div>
+          <p>A name, a job title, a relationship word. The trait is in the words, and the model has no reason to treat any of it as anything other than true.</p>
+        </div>
+        <div class="leak">
+          <h3>Correlated</h3>
+          <div class="tokens"><span>CEO → male</span><span>nurse → female</span><span>Embla → Norwegian</span></div>
+          <p>Nobody wrote a gender. But a role carries the base rate the model learned for it, and that rate walks into the answer. A trait that was never stated still arrives.</p>
+        </div>
+        <div class="leak">
+          <h3>Structural</h3>
+          <div class="tokens"><span>one essay, sent for grading</span></div>
+          <p>One essay submitted for a grade reads as the writer's own, so the model answers the way a teacher answers a student: warm, encouraging, slow to reach for the hard note. No single word caused it. The shape of the request did.</p>
+        </div>
+      </div>
+
+      <p class="leak-close">Neutral treats all three as input it is allowed to change, and it looks for the second and third hardest, because those are the ones the person typing cannot see.</p>
+    </div>
+  </section>
+
+  <section class="section" id="pipeline">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">Pipeline</p>
+        <div>
+          <h2>What happens between the prompt and the model.</h2>
+          <p class="lede">One request in, one request out, with a decision made per span rather than over the prompt as a whole.</p>
+        </div>
+      </div>
+
+      <figure class="fig">
+        <div class="fig-scroll">
+          <svg viewBox="0 0 1120 420" role="img" class="dg" aria-label="A prompt passes through span tagging and a per-span necessity check. Spans the task does not need are removed; spans it does need are counter-balanced. The model reads the rewritten prompt and returns an answer, which passes through a return step that produces the answer in the reader's own words alongside the model's untouched answer.">
+            <defs>
+              <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M0 1.2 9 5 0 8.8z" style="fill:var(--rule-strong)"/>
+              </marker>
+              <marker id="ahA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M0 1.2 9 5 0 8.8z" style="fill:var(--accent)"/>
+              </marker>
+            </defs>
+
+            <rect x="24" y="88" width="176" height="64"/>
+            <text x="112" y="115" text-anchor="middle">What the</text>
+            <text x="112" y="135" text-anchor="middle">employee types</text>
+
+            <rect x="248" y="88" width="196" height="64"/>
+            <text x="346" y="115" text-anchor="middle">Every span that</text>
+            <text x="346" y="135" text-anchor="middle" class="dim">carries a trait</text>
+
+            <rect x="492" y="88" width="164" height="64" class="acc"/>
+            <text x="574" y="115" text-anchor="middle">Does the task</text>
+            <text x="574" y="135" text-anchor="middle">need it?</text>
+
+            <rect x="704" y="64" width="150" height="64"/>
+            <text x="779" y="102" text-anchor="middle">Remove</text>
+
+            <rect x="704" y="152" width="150" height="64"/>
+            <text x="779" y="190" text-anchor="middle">Counter-balance</text>
+
+            <rect x="906" y="88" width="170" height="64"/>
+            <text x="991" y="115" text-anchor="middle">What the model</text>
+            <text x="991" y="135" text-anchor="middle">actually reads</text>
+
+            <line x1="200" y1="120" x2="242" y2="120" marker-end="url(#ah)"/>
+            <line x1="444" y1="120" x2="486" y2="120" marker-end="url(#ah)"/>
+            <path class="fl" d="M656 120 H682 V96 H698" marker-end="url(#ah)"/>
+            <path class="fl" d="M656 120 H682 V184 H698" marker-end="url(#ah)"/>
+            <path class="fl" d="M854 96 H884 V120 H900" marker-end="url(#ah)"/>
+            <path class="fl" d="M854 184 H884 V120" marker-end="url(#ah)"/>
+
+            <text x="222" y="112" text-anchor="middle" class="lbl">tag</text>
+            <text x="691" y="88" class="lbl">no</text>
+            <text x="691" y="176" class="lbl">yes</text>
+
+            <rect x="24" y="268" width="150" height="64"/>
+            <text x="99" y="306" text-anchor="middle">The model</text>
+
+            <rect x="232" y="268" width="200" height="64"/>
+            <text x="332" y="295" text-anchor="middle">Neutral's</text>
+            <text x="332" y="315" text-anchor="middle">return pass</text>
+
+            <rect x="504" y="236" width="224" height="60"/>
+            <text x="616" y="262" text-anchor="middle">The answer, in</text>
+            <text x="616" y="282" text-anchor="middle" class="dim">the reader's words</text>
+
+            <rect x="504" y="304" width="224" height="60" class="ghost"/>
+            <text x="616" y="330" text-anchor="middle" class="dim">The model's answer,</text>
+            <text x="616" y="350" text-anchor="middle" class="dim">verbatim</text>
+
+            <line x1="174" y1="300" x2="226" y2="300" marker-end="url(#ah)"/>
+            <path class="fl" d="M432 300 H468 V266 H498" marker-end="url(#ah)"/>
+            <path class="fl" d="M432 300 H468 V334 H498" marker-end="url(#ah)"/>
+
+            <path class="ret" d="M991 152 V228 H89 V262" marker-end="url(#ahA)"/>
+            <text x="560" y="222" text-anchor="middle" class="lbl">the answer</text>
+          </svg>
+        </div>
+        <figcaption class="figcap">The dashed path is the part most prompt filters leave out. Neutral always hands back the model's own answer alongside the rewritten one, unchanged.</figcaption>
+      </figure>
+
+      <div class="steps">
+        <div class="step">
+          <span class="mono">Tagging</span>
+          <h3>Mark every span, and what it implies</h3>
+          <p>Names, pronouns, roles, relationship words, and the traits each one carries at base rates. A span is marked for what it says and for what it lets the model infer.</p>
+        </div>
+        <div class="step">
+          <span class="mono">Necessity</span>
+          <h3>One question per span</h3>
+          <p>Does the task get worse without it? A role that is the subject of the task stays. A role mentioned in passing goes. The check runs per span, so one prompt can get both answers.</p>
+        </div>
+        <div class="step">
+          <span class="mono">Repair</span>
+          <h3>Remove, or offset</h3>
+          <p>Removal when the span does nothing. Counter-balance when it does something and cannot be dropped, which means adding information that offsets the inference. Every counter-balance is logged as a cost, not a win.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="pairing">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">The pairing constraint</p>
+        <div>
+          <h2>The order you name two people in is a signal of its own.</h2>
+          <p class="lede">Take the names out and the model goes looking for another way to work out which of the two is writing. The cheapest one available is sentence order.</p>
+        </div>
+      </div>
+
+      <p class="prose" style="color:var(--ink-2);margin-bottom:32px">If every sentence puts Person A first, the model reads Person A as the writer, and then it answers the writer's side of the question more kindly. That is sycophancy arriving through grammar. Neutral rewrites the prompt as descriptive pairs and balances who leads.</p>
+
+      <div class="pairs">
+        <div class="pair">
+          <p>Person A told Person B the timeline was unrealistic.</p>
+          <span class="lead a">A leads</span>
+        </div>
+        <div class="pair">
+          <p>Person B told Person A the date had already been agreed.</p>
+          <span class="lead">B leads</span>
+        </div>
+        <div class="pair">
+          <p>Person A asked Person B to re-plan the quarter.</p>
+          <span class="lead a">A leads</span>
+        </div>
+        <div class="pair">
+          <p>Person B asked Person A to confirm the scope first.</p>
+          <span class="lead">B leads</span>
+        </div>
+        <div class="balance">
+          <div class="bal-row">
+            <span class="bal-lab">Person A leads</span>
+            <span class="bal-bar"><i style="width:50%"></i></span>
+            <span class="bal-num">2</span>
+          </div>
+          <div class="bal-row">
+            <span class="bal-lab">Person B leads</span>
+            <span class="bal-bar"><i style="width:50%"></i></span>
+            <span class="bal-num">2</span>
+          </div>
+          <p class="verdict">Balanced</p>
+        </div>
+      </div>
+
+      <p class="prose" style="color:var(--ink-2);margin-top:28px">When the count is odd, Neutral allows a difference of one and picks the direction at random. It never emits a prompt where one person leads every pair. The sentences still say the same things; only the order changed.</p>
+    </div>
+  </section>
+
+  <section class="section" id="return">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">Return pass</p>
+        <div>
+          <h2>The answer comes back in the reader's words.</h2>
+          <p class="lede">The model answered a prompt that no longer had your people's names in it, so Neutral puts them back, and fixes the pronouns the model chose on its own.</p>
+        </div>
+      </div>
+
+      <div class="ret">
+        <div class="ret-head">
+          <span class="mono">The five-essay case</span>
+          <div class="seg" role="group" aria-label="Answer view">
+            <button id="ans-polished" aria-pressed="true">As returned</button>
+            <button id="ans-raw" aria-pressed="false">Model's answer</button>
+          </div>
+        </div>
+        <div class="ret-body" id="ansBody"></div>
+        <p class="ret-foot">The model read five essays and graded them in order. Neutral keeps the passage about your essay, drops the other four, and puts the model's third-person reading of the writer into the second person. The original sits behind the button to the left, unchanged.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="limits">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">Limits</p>
+        <div>
+          <h2>What Neutral does not do.</h2>
+          <p class="lede">Removing information is a real intervention with real costs, and a vendor who will not name them is telling you something about the rest of the pitch.</p>
+        </div>
+      </div>
+
+      <div class="limits">
+        <div class="limit">
+          <h3>It does not make a model unbiased</h3>
+          <p>It removes one class of input that bias travels in. Whatever the model learned from its training is still there, waiting for a prompt that gives it something to work with.</p>
+        </div>
+        <div class="limit">
+          <h3>Counter-balancing adds information</h3>
+          <p>Four extra essays so the model cannot tell which one is yours also means four more essays for it to read, and four more chances for it to weight something you did not intend. Neutral takes that route only when removal is unavailable, and records it.</p>
+        </div>
+        <div class="limit">
+          <h3>It only sees the prompt</h3>
+          <p>Bias entering through a retrieval corpus, a fine-tune, or a tool's output is outside its reach. Neutral reads the request and the answer, and nothing else.</p>
+        </div>
+        <div class="limit">
+          <h3>Sometimes the detail was load-bearing</h3>
+          <p>Drop a role the task actually turns on and the answer gets worse, not fairer. This is why the necessity check runs span by span, and why a pilot measures answer quality alongside bias.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="pilot">
+    <div class="wrap">
+      <div class="pilot">
+        <p class="eyebrow">Pilot</p>
+        <h2>Run it on your own prompts.</h2>
+        <p class="lede">Two weeks, one team, one task. You choose the task, and we send you every prompt Neutral changed, the change it made, and the two answers side by side.</p>
+
+        <div class="pilot-grid">
+          <div>
+            <span class="mono">You give us</span>
+            <p>A sample of prompts from one team, and the model you already route them to.</p>
+          </div>
+          <div>
+            <span class="mono">You get back</span>
+            <p>Every changed prompt with its diff, both answers, and the counter-balance log.</p>
+          </div>
+          <div>
+            <span class="mono">The test</span>
+            <p>Blind-graded answer quality next to the unmodified runs. If the answers are not better, the pilot says so.</p>
+          </div>
+        </div>
+
+        <div class="pilot-act">
+          <a class="btn btn-p" href="mailto:pilots@neutral.example?subject=Neutral%20pilot">Book a pilot</a>
+          <span class="addr">pilots@neutral.example</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-in">
+      <span class="brand">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path d="M5 4v16M19 4v16" stroke="currentColor" stroke-width="1.7" fill="none"/>
+          <path d="M8 12h8" stroke="currentColor" stroke-width="1.4" opacity=".38" fill="none"/>
+          <path d="M7.6 9.3 16.4 14.7" stroke="var(--accent)" stroke-width="1.7" fill="none" stroke-linecap="round"/>
+        </svg>
+        Neutral
+      </span>
+      <nav class="foot-nav">
+        <a href="#examples">Examples</a>
+        <a href="#method">Method</a>
+        <a href="#pairing">Pairing</a>
+        <a href="#pipeline">Pipeline</a>
+        <a href="#limits">Limits</a>
+      </nav>
+    </div>
+    <p class="foot-note">Sits in the request path. Changes the prompt on the way out and the answer on the way back.</p>
+  </div>
+</footer>
+
+<script>
+const EX = [
+  {
+    tab: 'Two names',
+    head: 'Evaluating a disagreement between two colleagues',
+    segs: [
+      {t:'cut', v:'Jabari'}, {t:'add', v:'Person A'},
+      {t:'text', v:' and '},
+      {t:'cut', v:'Embla'}, {t:'add', v:'Person B'},
+      {t:'text', v:' had a disagreement over the quarterly roadmap. '},
+      {t:'cut', v:'Jabari'}, {t:'add', v:'Person A'},
+      {t:'text', v:' said the timeline was unrealistic and that '},
+      {t:'cut', v:'Embla'}, {t:'add', v:'Person B'},
+      {t:'text', v:' was ignoring the engineering constraints. '},
+      {t:'cut', v:'Embla'}, {t:'add', v:'Person B'},
+      {t:'text', v:' said the date had been agreed in front of the whole company. Who handled it worse?'}
+    ],
+    note: '<b>Removed because</b> a Swahili name and a Norwegian name each carry an ethnicity, a gender, and a set of impressions that arrive with the sound of the name. None of it is part of the question. Person A and Person B stay fixed for the length of the prompt, so the model still knows it is reading about two people rather than one.'
+  },
+  {
+    tab: 'A job title',
+    head: 'Writing an all-hands note about a bad quarter',
+    segs: [
+      {t:'cut', v:"I'm the CEO of a 400-person logistics company and "},
+      {t:'text', v:'I need to write an all-hands note about a bad quarter. Here is my draft: We missed the number. I own that.'}
+    ],
+    note: '<b>Removed because</b> nothing in “write an all-hands note” depends on the role. “CEO” is also a term the model reads as male at base rates, so a gender arrives that nobody wrote down. When the role is the subject of the task — “write the part of the CEO letter that covers the miss” — Neutral leaves it in and works on the correlated read instead.'
+  },
+  {
+    tab: 'One essay',
+    head: 'Getting a college essay graded',
+    segs: [
+      {t:'cut', v:"Here's my"}, {t:'add', v:'Here are five'},
+      {t:'text', v:' college freshman '},
+      {t:'cut', v:'essay'}, {t:'add', v:'essays from one class'},
+      {t:'text', v:'. Read '},
+      {t:'cut', v:'it'}, {t:'add', v:'each one'},
+      {t:'text', v:' and tell me what grade it deserves.'}
+    ],
+    note: '<b>Nothing was removed here.</b> The leak is structural: one essay sent for grading reads as the writer’s own, and the model answers the way a teacher answers a student. Neutral writes four comparison essays in the same register, shuffles the position, and sends five. That adds cost — four more essays to read — so it takes this route only when removal is not available.'
+  },
+  {
+    tab: 'A relationship',
+    head: 'Working out how to open a difficult conversation',
+    segs: [
+      {t:'cut', v:'My boyfriend'}, {t:'add', v:'Person A'},
+      {t:'text', v:' and I have been together two years. '},
+      {t:'cut', v:'He'}, {t:'add', v:'They'},
+      {t:'text', v:' wants to move cities for '},
+      {t:'cut', v:'his'}, {t:'add', v:'their'},
+      {t:'text', v:' job and I do not want to leave mine. How do I tell '},
+      {t:'cut', v:'him'}, {t:'add', v:'them'},
+      {t:'text', v:' without it turning into a fight?'}
+    ],
+    note: '<b>Removed because</b> “boyfriend” tells the model the writer is a woman and that both people are young, and the pronouns say it five more times. The question is about how to open a conversation, and none of the rest is load-bearing.'
+  }
+];
+
+const ANS = {
+  polished: 'Your second paragraph is the strongest thing in the essay. You set up a contradiction in the first sentence and pay it off in the last, which is the harder version of that move. The third paragraph is where you lose it: you make the claim twice and support it once. State it once and give it the evidence.',
+  raw: 'Essay 1 opens with a contradiction and resolves it by the final sentence, which is the difficult version of that structure. The third paragraph repeats its claim rather than supporting it. The writer should state the claim once and supply the evidence.'
+};
+
+const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// view 'diff' annotates the right-hand pane; 'clean' is the prompt as it is
+// actually transmitted, with removals gone and substitutions already in place.
+let cur = 0, view = 'diff', ansView = 'polished';
+
+const tabsEl   = document.getElementById('tabs');
+const caseEl   = document.getElementById('caseLine');
+const changeEl = document.getElementById('changeLine');
+const wEl      = document.getElementById('txtWritten');
+const mEl      = document.getElementById('txtModel');
+const noteEl   = document.getElementById('noteLine');
+const segD     = document.getElementById('vw-diff');
+const segC     = document.getElementById('vw-clean');
+const ansBody  = document.getElementById('ansBody');
+const ansP     = document.getElementById('ans-polished');
+const ansR     = document.getElementById('ans-raw');
+
+EX.forEach((ex, i) => {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.textContent = ex.tab;
+  b.addEventListener('click', () => { cur = i; draw(); });
+  tabsEl.appendChild(b);
+});
+
+function draw() {
+  const ex = EX[cur];
+
+  [...tabsEl.children].forEach((b, i) => b.setAttribute('aria-pressed', String(i === cur)));
+
+  // The left pane is the prompt exactly as typed: inserted spans are dropped,
+  // removed spans stay. It does not change with the toggle, so a reader can
+  // always see what was there before.
+  let written = '', model = '';
+  for (const s of ex.segs) {
+    if (s.t === 'text') {
+      written += esc(s.v);
+      model += esc(s.v);
+    } else if (s.t === 'cut') {
+      written += esc(s.v);
+      if (view === 'diff') model += '<span class="cut">' + esc(s.v) + '</span>';
+    } else if (view === 'diff') {
+      model += '<span class="add">' + esc(s.v) + '</span>';
+    } else {
+      model += esc(s.v);
+    }
+  }
+
+  wEl.innerHTML = written;
+  mEl.innerHTML = model;
+
+  // One rewrite per cut/add pair, so counting the cuts counts the edits.
+  const n = ex.segs.filter(s => s.t === 'cut').length;
+  caseEl.textContent = ex.head;
+  changeEl.textContent = n + (n === 1 ? ' span rewritten' : ' spans rewritten');
+  noteEl.innerHTML = ex.note;
+
+  segD.setAttribute('aria-pressed', String(view === 'diff'));
+  segC.setAttribute('aria-pressed', String(view === 'clean'));
+}
+
+segD.addEventListener('click', () => { view = 'diff'; draw(); });
+segC.addEventListener('click', () => { view = 'clean'; draw(); });
+
+function drawAns() {
+  ansBody.innerHTML = ansView === 'raw'
+    ? esc(ANS.raw)
+    : esc(ANS.polished).replace(/\b(?:You|Your|you|your)\b/g, m => '<span class="u">' + m + '</span>');
+  ansP.setAttribute('aria-pressed', String(ansView === 'polished'));
+  ansR.setAttribute('aria-pressed', String(ansView === 'raw'));
+}
+ansP.addEventListener('click', () => { ansView = 'polished'; drawAns(); });
+ansR.addEventListener('click', () => { ansView = 'raw'; drawAns(); });
+
+draw();
+drawAns();
+</script>

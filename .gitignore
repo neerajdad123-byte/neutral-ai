@@ -1,0 +1,11 @@
+.venv/
+.env
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+results/raw/
+reports/live.log
+.ok/state/
+.claude/settings.local.json
+

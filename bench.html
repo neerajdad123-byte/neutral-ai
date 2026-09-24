@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Benchmarks · live</title>
+<style>
+:root{--bg:#0b0d10;--panel:#12151a;--panel2:#161a21;--line:#232a35;--fg:#e7eaf0;--dim:#8b93a3;--acc:#5ee0a8;--acc2:#7aa2ff;--warn:#ffcc66;--bad:#ff7b7b;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:13.5px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{position:sticky;top:0;z-index:9;display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:9px 14px;background:rgba(11,13,16,.93);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+h1{font-size:14px;margin:0 8px 0 0;font-weight:600}
+h1 span{color:var(--dim);font-weight:400}
+.grow{flex:1}
+input,button,select{font:inherit;color:var(--fg);background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:5px 9px}
+button{cursor:pointer}
+button:hover{border-color:#3a4557}
+button.primary{background:#16301f;border-color:#26543a;color:var(--acc)}
+button.on{background:#16301f;border-color:#2a6a49;color:var(--acc)}
+input[type=text]{width:min(340px,38vw);font-family:var(--mono);font-size:12px}
+.status{font-family:var(--mono);font-size:11.5px;color:var(--dim);display:flex;align-items:center}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--dim);display:inline-block;margin-right:6px}
+.dot.live{background:var(--acc);animation:pulse 1.6s infinite}
+.dot.err{background:var(--bad)}
+@keyframes pulse{50%{opacity:.3}}
+main{padding:14px;display:grid;gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+.cardhead{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.cardhead b{font-weight:600}
+.val{font-family:var(--mono);font-size:19px}
+.mini{font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+#grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(235px,1fr))}
+#grid .card{cursor:pointer}
+#grid .card:hover{border-color:#39465a}
+#grid .card.sel{border-color:var(--acc)}
+.spark{display:block;width:100%;height:46px}
+table{border-collapse:collapse;font-family:var(--mono);font-size:11.5px;width:100%}
+th,td{padding:3px 8px;text-align:right;white-space:nowrap;border-bottom:1px solid #1b212b}
+th{position:sticky;top:0;background:var(--panel2);color:var(--dim);font-weight:500;z-index:2}
+th:first-child,td:first-child{text-align:left}
+tbody tr:hover{background:#171c24}
+.tblwrap{max-height:42vh;overflow:auto;border:1px solid var(--line);border-radius:8px}
+svg text{font-family:var(--mono);font-size:10px;fill:var(--dim)}
+#bigwrap svg{display:block;width:100%;height:auto}
+#drop{position:fixed;inset:0;background:#0b0d10e8;border:3px dashed var(--acc);display:none;place-items:center;z-index:50;font-size:18px;color:var(--acc)}
+#drop.show{display:grid}
+.banner{padding:9px 12px;border-radius:8px;border:1px solid var(--line);background:#1a1608;color:var(--warn);font-size:12.5px}
+.banner.ok{background:#0e1a14;color:var(--acc)}
+.banner.bad{background:#1d1010;color:var(--bad)}
+.banner code{font-family:var(--mono);background:#0b0d10;padding:1px 5px;border-radius:4px}
+#tip{position:fixed;pointer-events:none;background:#0b0d10f5;border:1px solid var(--line);border-radius:7px;padding:6px 9px;font-family:var(--mono);font-size:11.5px;display:none;z-index:60;white-space:pre;color:var(--fg)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Benchmarks <span>· live</span></h1>
+  <input id="src" type="text" placeholder="benchmarks.json | run.log (or ?src=)" spellcheck="false">
+  <button id="go" class="primary">Load</button>
+  <button id="live" class="on">Live</button>
+  <select id="iv" title="poll interval">
+    <option value="1000">1s</option><option value="2000" selected>2s</option>
+    <option value="5000">5s</option><option value="10000">10s</option>
+  </select>
+  <button id="file">Open file…</button>
+  <button id="sample">Sample</button>
+  <span class="grow"></span>
+  <span class="status"><span id="dot" class="dot"></span><span id="st">idle</span></span>
+</header>
+<main>
+  <div id="msg" class="banner" style="display:none"></div>
+  <section class="card" id="bigcard"></section>
+  <section id="grid"></section>
+  <section class="card">
+    <div class="cardhead"><b>Rows</b><span class="mini" id="rowinfo"></span><span class="grow"></span>
+      <label class="mini"><input type="checkbox" id="follow" checked style="vertical-align:-2px"> follow</label>
+    </div>
+    <div class="tblwrap" id="tblwrap"><table id="tbl"><thead></thead><tbody></tbody></table></div>
+  </section>
+</main>
+<div id="drop">drop a file — json / jsonl / csv / log</div>
+<div id="tip"></div>
+<input type="file" id="picker" style="display:none">
+<script>
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const isNum=v=>typeof v==="number"&&isFinite(v);
+const XKEYS=["t","time","timestamp","ts","step","iter","iteration","epoch","i","idx","index","n","sample"];
+
+function fmt(v){
+  if(!isNum(v))return v===undefined||v===null?"":String(v);
+  const a=Math.abs(v);
+  if(a===0)return "0";
+  if(a>=1e6||a<1e-3)return v.toExponential(3);
+  if(a>=1000)return v.toFixed(1);
+  if(a>=10)return v.toFixed(2);
+  if(a>=1)return v.toFixed(3);
+  return v.toFixed(4);
+}
+function ext(arr){let mn=Infinity,mx=-Infinity;for(const v of arr){if(v<mn)mn=v;if(v>mx)mx=v;}return [mn,mx];}
+
+/* ---------- parsers: json | jsonl | csv | text log ---------- */
+function parseLine(line){
+  const rec={};let n=0;
+  const tm=line.match(/^\s*\[?(\d{4}-\d\d-\d\d[T ]\d\d:\d\d:\d\d(?:\.\d+)?|\d\d:\d\d:\d\d(?:\.\d+)?)\]?/);
+  if(tm)rec.t=tm[1];
+  const re=/([A-Za-z_][A-Za-z0-9_.\- ]{0,29}?)\s*[:=]\s*(-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)/g;
+  let m;
+  while((m=re.exec(line))){
+    const k=m[1].trim().replace(/\s+/g,"_"),v=parseFloat(m[2]);
+    if(isFinite(v)){rec[k]=v;n++;}
+  }
+  if(!n){
+    const body=line.replace(/^\s*\[?[\d:.\-T ]+\]?/,"");
+    const nums=body.match(/-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?/g);
+    if(nums&&nums.length===1){rec.value=parseFloat(nums[0]);n++;}
+  }
+  return n?rec:null;
+}
+function parseCSV(text){
+  const rows=[];let f="",row=[],q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){f+='"';i++;} else q=false; } else f+=c; }
+    else if(c==='"')q=true;
+    else if(c===","){row.push(f);f="";}
+    else if(c==="\n"){row.push(f);rows.push(row);row=[];f="";}
+    else if(c!=="\r")f+=c;
+  }
+  row.push(f); if(row.length>1||row[0]!=="")rows.push(row);
+  if(rows.length<2)return [];
+  const head=rows[0].map(h=>h.trim());
+  if(!head.length||!head.every(h=>/^[A-Za-z_][\w .\-]*$/.test(h)))return [];
+  const out=[];
+  for(const r of rows.slice(1)){
+    if(!r.some(c=>String(c).trim()!==""))continue;
+    const o={};
+    head.forEach((h,i)=>{const c=String(r[i]===undefined?"":r[i]).trim();if(c==="")return;
+      const v=Number(c);o[h.replace(/\s+/g,"_")]=isFinite(v)?v:c;});
+    if(Object.keys(o).length)out.push(o);
+  }
+  return out;
+}
+function parseAny(text){
+  if(!text||!text.trim())return [];
+  const s=text.trim();
+  try{
+    const j=JSON.parse(s);
+    if(Array.isArray(j))return j.filter(o=>o&&typeof o==="object");
+    if(j&&typeof j==="object"){
+      for(const k of ["rows","results","runs","data","benchmarks","samples","records"])
+        if(Array.isArray(j[k]))return j[k].filter(o=>o&&typeof o==="object");
+      const arrs=Object.keys(j).filter(k=>Array.isArray(j[k]));
+      if(arrs.length){
+        const n=Math.max.apply(null,arrs.map(k=>j[k].length));
+        return Array.from({length:n},(_,i)=>{const o={};arrs.forEach(k=>o[k]=j[k][i]);return o;});
+      }
+      return [j];
+    }
+  }catch(e){}
+  const lines=s.split(/\r?\n/).filter(l=>l.trim()!=="");
+  if(lines.length>1){
+    const jr=[];
+    for(const l of lines){try{const o=JSON.parse(l.trim());if(o&&typeof o==="object"&&!Array.isArray(o))jr.push(o);}catch(e){}}
+    if(jr.length>=lines.length*0.6)return jr;
+    const csv=parseCSV(s); if(csv.length)return csv;
+  }
+  return lines.map(parseLine).filter(Boolean);
+}
+
+/* ---------- shape / series ---------- */
+function shape(rows){
+  const keys=[];
+  for(const r of rows)for(const k in r)if(keys.indexOf(k)<0&&isNum(r[k]))keys.push(k);
+  let xKey=null;
+  for(const k of XKEYS){let n=0;for(const r of rows)if(isNum(r[k]))n++;if(n>=rows.length*0.8){xKey=k;break;}}
+  let metrics=keys.filter(k=>k!==xKey);
+  if(!metrics.length)metrics=keys.slice();
+  return {keys,xKey,metrics};
+}
+function series(rows,key,xKey){
+  const pts=[];
+  rows.forEach((r,i)=>{if(!isNum(r[key]))return;
+    pts.push({x:xKey&&isNum(r[xKey])?r[xKey]:i,y:r[key],i});});
+  return pts;
+}
+function stat(pts){
+  const v=pts.map(p=>p.y);
+  if(!v.length)return {last:null,min:null,max:null,mean:null};
+  const e=ext(v);let s=0;for(const x of v)s+=x;
+  return {last:v[v.length-1],min:e[0],max:e[1],mean:s/v.length};
+}
+function downsample(pts,max){
+  if(pts.length<=max)return pts;
+  const out=[],bucket=pts.length/max;
+  for(let b=0;b<max;b++){
+    const s=Math.floor(b*bucket),e=Math.min(pts.length,Math.floor((b+1)*bucket));
+    let lo=pts[s],hi=pts[s];
+    for(let i=s;i<e;i++){if(pts[i].y<lo.y)lo=pts[i];if(pts[i].y>hi.y)hi=pts[i];}
+    out.push(lo);if(hi!==lo)out.push(hi);
+  }
+  return out;
+}
+function geo(pts,w,h,pad){
+  let xmin=Infinity,xmax=-Infinity,ymin=Infinity,ymax=-Infinity;
+  for(const p of pts){if(p.x<xmin)xmin=p.x;if(p.x>xmax)xmax=p.x;if(p.y<ymin)ymin=p.y;if(p.y>ymax)ymax=p.y;}
+  if(!isFinite(xmin)){xmin=0;xmax=1;}
+  if(xmin===xmax)xmax=xmin+1;
+  if(ymin===ymax){const d=Math.abs(ymin)||1;ymin-=d*.5;ymax+=d*.5;}
+  return {xmin,xmax,ymin,ymax,
+    sx:x=>pad.l+(w-pad.l-pad.r)*((x-xmin)/(xmax-xmin)),
+    sy:y=>pad.t+(h-pad.t-pad.b)*(1-(y-ymin)/(ymax-ymin))};
+}
+function path(P,g){
+  return P.map((p,i)=>(i?"L":"M")+g.sx(p.x).toFixed(1)+" "+g.sy(p.y).toFixed(1)).join(" ");
+}
+
+/* ---------- charts ---------- */
+function bigSVG(pts,label,xKey){
+  const w=900,h=260,pad={l:72,r:16,t:14,b:26};
+  const g=geo(pts,w,h,pad),P=downsample(pts,600),d=path(P,g);
+  let grid="";
+  for(let i=0;i<=4;i++){
+    const v=g.ymin+(g.ymax-g.ymin)*(i/4),y=g.sy(v);
+    grid+='<line x1="'+pad.l+'" x2="'+(w-pad.r)+'" y1="'+y.toFixed(1)+'" y2="'+y.toFixed(1)+'" stroke="#1e2531"/>'+
+      '<text x="'+(pad.l-8)+'" y="'+(y+3).toFixed(1)+'" text-anchor="end">'+fmt(v)+'</text>';
+  }
+  for(let i=0;i<=3;i++){
+    const x=pad.l+(w-pad.l-pad.r)*(i/3);
+    grid+='<line x1="'+x.toFixed(1)+'" x2="'+x.toFixed(1)+'" y1="'+pad.t+'" y2="'+(h-pad.b)+'" stroke="#161c25"/>';
+  }
+  const xl='<text x="'+pad.l+'" y="'+(h-8)+'">'+esc(xKey?xKey+" "+fmt(g.xmin):"#0")+'</text>'+
+    '<text x="'+(w-pad.r)+'" y="'+(h-8)+'" text-anchor="end">'+esc(xKey?xKey+" "+fmt(g.xmax):"#"+P[P.length-1].i)+'</text>';
+  const area='<path d="'+d+" L "+g.sx(P[P.length-1].x).toFixed(1)+" "+(h-pad.b)+" L "+g.sx(P[0].x).toFixed(1)+" "+(h-pad.b)+' Z" fill="url(#fade)"/>';
+  return {svg:'<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none">'+
+    '<defs><linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">'+
+    '<stop offset="0" stop-color="#7aa2ff" stop-opacity=".22"/>'+
+    '<stop offset="1" stop-color="#7aa2ff" stop-opacity="0"/></linearGradient></defs>'+
+    grid+area+'<path d="'+d+'" fill="none" stroke="var(--acc2)" stroke-width="1.8" vector-effect="non-scaling-stroke"/>'+
+    '<line id="hx" x1="0" x2="0" y1="'+pad.t+'" y2="'+(h-pad.b)+'" stroke="#5ee0a8" stroke-dasharray="3 3" style="opacity:0"/>'+
+    '<circle id="hd" r="3" fill="var(--acc)" style="opacity:0"/>'+xl+'</svg>',
+    ctx:{w,h,pad,g,pts:P,label,xKey}};
+}
+function spark(pts){
+  if(pts.length<2)return '<svg class="spark"></svg>';
+  const w=240,h=46,pad={l:2,r:2,t:6,b:6};
+  const g=geo(pts,w,h,pad),P=downsample(pts,120),d=path(P,g),last=P[P.length-1];
+  return '<svg class="spark" viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none">'+
+    '<path d="'+d+'" fill="none" stroke="var(--acc2)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>'+
+    '<circle cx="'+g.sx(last.x).toFixed(1)+'" cy="'+g.sy(last.y).toFixed(1)+'" r="2.5" fill="var(--acc)"/></svg>';
+}
+
+/* ---------- render ---------- */
+const state={rows:[],keys:[],metrics:[],xKey:null,selected:null,src:"",live:true,hash:"",follow:true,msg:null,hover:null};
+
+function render(){
+  const rows=state.rows,metrics=state.metrics,xKey=state.xKey;
+  const msg=$("#msg");
+  if(state.msg){msg.style.display="block";msg.className="banner "+(state.msg.kind||"");msg.innerHTML=state.msg.html;}
+  else msg.style.display="none";
+  $("#rowinfo").textContent=rows.length+" rows · "+metrics.length+" metrics · x="+(xKey||"row#");
+
+  if(!rows.length){
+    $("#bigcard").innerHTML='<div class="cardhead"><b>No data yet</b></div><div class="mini">Point <b>src</b> at a file being written by your run, or drop one on the page.</div>';
+    $("#grid").innerHTML="";$("#tbl thead").innerHTML="";$("#tbl tbody").innerHTML="";return;
+  }
+
+  const sel=state.selected&&metrics.indexOf(state.selected)>=0?state.selected:metrics[0];
+  state.selected=sel;
+  if(sel){
+    const pts=series(rows,sel,xKey),e=stat(pts),c=bigSVG(pts,sel,xKey);
+    state.hover=c.ctx;
+    $("#bigcard").innerHTML='<div class="cardhead">'+
+      '<select id="msel">'+metrics.map(m=>'<option'+(m===sel?" selected":"")+">"+esc(m)+"</option>").join("")+'</select>'+
+      '<span class="val">'+fmt(e.last)+'</span>'+
+      '<span class="mini">min '+fmt(e.min)+" · max "+fmt(e.max)+" · mean "+fmt(e.mean)+" · n "+pts.length+'</span>'+
+      '<span class="grow"></span><span class="mini">hover to read</span></div>'+
+      '<div id="bigwrap">'+c.svg+"</div>";
+    attachHover();
+  }else{
+    $("#bigcard").innerHTML='<div class="cardhead"><b>No numeric columns found</b></div><div class="mini">Parsed '+rows.length+" rows, but none held numbers.</div>";
+  }
+
+  $("#grid").innerHTML=metrics.map(m=>{
+    const pts=series(rows,m,xKey),e=stat(pts);
+    return '<div class="card'+(m===sel?" sel":"")+'" data-m="'+esc(m)+'">'+
+      '<div class="cardhead"><b>'+esc(m)+'</b><span class="grow"></span><span class="mini">n '+pts.length+"</span></div>"+
+      '<div class="val">'+fmt(e.last)+"</div>"+spark(pts)+
+      '<div class="mini">min '+fmt(e.min)+" · max "+fmt(e.max)+" · mean "+fmt(e.mean)+"</div></div>";
+  }).join("");
+
+  const cols=(xKey?[xKey]:[]).concat(state.keys.filter(k=>k!==xKey));
+  const view=rows.slice(-60);
+  $("#tbl thead").innerHTML="<tr>"+cols.map(c=>"<th>"+esc(c)+"</th>").join("")+"</tr>";
+  $("#tbl tbody").innerHTML=view.map(r=>"<tr>"+cols.map(c=>"<td>"+esc(isNum(r[c])?fmt(r[c]):r[c])+"</td>").join("")+"</tr>").join("");
+  if(state.follow){const w=$("#tblwrap");w.scrollTop=w.scrollHeight;}
+}
+
+function attachHover(){
+  const svg=$("#bigwrap svg");if(!svg||!state.hover)return;
+  const ctx=state.hover,hx=$("#hx"),hd=$("#hd"),tip=$("#tip");
+  svg.addEventListener("mousemove",e=>{
+    const r=svg.getBoundingClientRect(),vx=(e.clientX-r.left)*(ctx.w/r.width);
+    let best=null,bd=Infinity;
+    for(const p of ctx.pts){const d=Math.abs(ctx.g.sx(p.x)-vx);if(d<bd){bd=d;best=p;}}
+    if(!best)return;
+    const X=ctx.g.sx(best.x),Y=ctx.g.sy(best.y);
+    hx.setAttribute("x1",X);hx.setAttribute("x2",X);hd.setAttribute("cx",X);hd.setAttribute("cy",Y);
+    hx.style.opacity=1;hd.style.opacity=1;
+    tip.style.display="block";
+    tip.textContent=(ctx.xKey?ctx.xKey+" "+best.x:"#"+best.i)+"\n"+ctx.label+" "+fmt(best.y);
+    tip.style.left=(e.clientX+14)+"px";tip.style.top=(e.clientY+12)+"px";
+  });
+  svg.addEventListener("mouseleave",()=>{hx.style.opacity=0;hd.style.opacity=0;tip.style.display="none";});
+}
+
+/* ---------- ingest / poll ---------- */
+function hash(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return h+":"+s.length;}
+function setStatus(kind,txt){$("#dot").className="dot"+(kind?" "+kind:"");$("#st").textContent=txt;}
+function fail(html,kind){state.msg={html,kind};render();}
+
+function ingest(text,from){
+  const h=hash(text);
+  if(h===state.hash){setStatus("live","live · "+new Date().toLocaleTimeString()+" (no change)");return;}
+  let rows=[];
+  try{rows=parseAny(text);}catch(e){fail("parse error: "+esc(e.message),"bad");return;}
+  if(!rows.length){fail("Parsed 0 rows from <code>"+esc(from||state.src)+"</code>. Need JSON array / JSONL / CSV / lines with <code>key=number</code>.","bad");return;}
+  const s=shape(rows);
+  state.rows=rows;state.keys=s.keys;state.metrics=s.metrics;state.xKey=s.xKey;state.hash=h;
+  if(state.metrics.indexOf(state.selected)<0)state.selected=state.metrics[0]||null;
+  state.msg=null;
+  render();
+  setStatus("live","live · "+rows.length+" rows · "+new Date().toLocaleTimeString());
+}
+
+let timer=null;
+async function poll(){
+  if(!state.live||!state.src)return;
+  try{
+    const u=state.src+(state.src.indexOf("?")<0?"?":"&")+"_cb="+Date.now();
+    const r=await fetch(u,{cache:"no-store"});
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    ingest(await r.text(),state.src);
+  }catch(e){
+    setStatus("err","error · "+e.message);
+    if(location.protocol==="file:"&&!state.msg){
+      fail("Browsers block <code>file://</code> fetches. Run a server in this folder:<br><code>python -m http.server 8000</code><br>then open <code>http://localhost:8000/bench.html?src=run.log</code> — or just drag your file onto this page.","");
+    }
+  }
+}
+function restart(){if(timer)clearInterval(timer);timer=null;if(state.live&&state.src)timer=setInterval(poll,+$("#iv").value);}
+function loadFile(f){const rd=new FileReader();rd.onload=()=>{state.hash="";ingest(String(rd.result),f.name);};rd.readAsText(f);}
+
+/* ---------- events ---------- */
+$("#go").onclick=()=>{state.src=$("#src").value.trim();state.hash="";restart();poll();};
+$("#src").addEventListener("keydown",e=>{if(e.key==="Enter")$("#go").click();});
+$("#live").onclick=()=>{state.live=!state.live;$("#live").className=state.live?"on":"";
+  setStatus(state.live?"live":"",state.live?"live":"paused");restart();};
+$("#iv").onchange=restart;
+$("#file").onclick=()=>$("#picker").click();
+$("#picker").onchange=e=>{if(e.target.files[0])loadFile(e.target.files[0]);};
+$("#follow").onchange=e=>{state.follow=e.target.checked;};
+$("#sample").onclick=()=>{state.hash="";ingest(sample(),"sample");};
+$("#grid").onclick=e=>{const c=e.target.closest("[data-m]");if(c){state.selected=c.dataset.m;render();}};
+$("#bigcard").addEventListener("change",e=>{if(e.target.id==="msel"){state.selected=e.target.value;render();}});
+window.addEventListener("dragover",e=>{e.preventDefault();$("#drop").classList.add("show");});
+window.addEventListener("dragleave",e=>{if(e.clientX<=0||e.clientY<=0)$("#drop").classList.remove("show");});
+window.addEventListener("drop",e=>{e.preventDefault();$("#drop").classList.remove("show");
+  const f=e.dataTransfer.files[0];if(f)loadFile(f);});
+
+function sample(){
+  const out=[];let loss=2.62;
+  for(let i=1;i<=140;i++){
+    loss=Math.max(1.31,loss*(1-0.004)+Math.random()*0.005);
+    out.push("epoch="+i+" loss="+loss.toFixed(4)+" tokens_per_sec="+(120+Math.random()*38).toFixed(1)+
+      " vram_mb="+(18120+Math.random()*260).toFixed(0));
+  }
+  return out.join("\n");
+}
+
+/* ---------- boot ---------- */
+const q=new URLSearchParams(location.search);
+if(q.has("selftest"))runSelfTest();
+else{
+  state.src=q.get("src")||"";
+  $("#src").value=state.src;
+  if(state.src){restart();poll();}
+  else{
+    fail("Pick a data source: type the file being written by your run and hit <b>Load</b>, "+
+      "or drag it onto this page, or hit <b>Sample</b> to see the shape. "+
+      "Live polling needs <code>python -m http.server 8000</code> in this folder.", "");
+    render();
+  }
+}
+
+/* one runnable check: every parser + the shape/series/stat chain */
+function runSelfTest(){
+  const eq=(a,b,msg)=>{if(JSON.stringify(a)!==JSON.stringify(b)){ok=false;out.push("FAIL "+msg+"  got "+JSON.stringify(a)+" want "+JSON.stringify(b));}else out.push("ok   "+msg);};
+  let ok=true;const out=[];
+  eq(parseAny('[{"a":1,"b":2},{"a":3,"b":4}]').length,2,"json array");
+  eq(parseAny('{"rows":[{"a":1},{"a":2}]}').length,2,"json object with rows");
+  eq(parseAny('{"a":[1,2,3],"b":[4,5,6]}').map(r=>r.b),[4,5,6],"object of columns");
+  eq(parseAny('{"a":1}').length,1,"single json object");
+  eq(parseAny('{"a":1}\n{"a":2}').length,2,"jsonl");
+  eq(parseAny("a,b\n1,2\n3,4").map(r=>r.b),[2,4],"csv numbers");
+  eq(parseAny('x,"a,b"\n1,2').map(r=>r["a,b"]),[2],"csv quoted");
+  const log=parseAny("12:00:03 tokens_per_sec=118.2 loss: 2.41 vram_mb=18240");
+  eq([log[0].tokens_per_sec,log[0].loss,log[0].vram_mb,log[0].t],[118.2,2.41,18240,"12:00:03"],"log key=value + timestamp");
+  eq(parseAny("just words, no digits here").length,0,"prose is not data");
+  eq(parseAny("elapsed 42")[0].value,42,"bare number fallback");
+  const rows=parseAny(sample());
+  eq(rows.length,140,"sample rows");
+  const s=shape(rows);
+  eq([s.xKey,s.metrics.length],["epoch",3],"shape picks x column");
+  eq(stat(series(rows,"loss",s.xKey)).last,rows[139].loss,"series+stat last point");
+  const dn=downsample(series(rows,"loss",s.xKey),10);
+  const dt=dn.reduce((m,p)=>Math.max(m,p.y),-Infinity);
+  const ft=Math.max.apply(null,rows.map(r=>r.loss));
+  eq(dt.toFixed(6),ft.toFixed(6),"downsample keeps the max envelope");
+  const svg=bigSVG(series(rows,"loss",s.xKey),"loss","epoch").svg;
+  eq(/<path/.test(svg)&&/NaN/.test(svg),false,"chart svg has no NaN");
+  document.body.innerHTML='<main><div id="msg" class="banner '+(ok?"ok":"bad")+'"><b>selftest '+(ok?"PASS":"FAIL")+
+    "</b> — "+out.filter(l=>l.indexOf("FAIL")===0).length+"/"+out.length+' failed<pre>'+
+    out.join("\n").replace(/[<>&]/g,"")+"</pre></div></main>";
+}
+</script>
+</body>
+</html>

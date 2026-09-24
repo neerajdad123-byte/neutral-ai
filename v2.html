@@ -1,0 +1,1564 @@
+<title>Neutral — Prompt-side bias reduction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400..700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+
+<script>document.documentElement.classList.add('js');</script>
+
+<style>
+/* ══ tokens ══════════════════════════════════════════════════════════════
+   A committed light design. Every colour is defined here and nowhere else,
+   so the page renders identically whatever theme the viewer is using.      */
+:root{
+  color-scheme: light;
+
+  --paper:#FFFFFF;
+  --band:#F4F7F6;
+  --surface:#FFFFFF;
+  --surface-2:#FAFCFB;
+
+  --ink:#15201E;
+  --ink-2:#5E6B68;
+  --ink-3:#86938F;
+
+  --rule:#E2E8E6;
+  --rule-soft:#EFF3F1;
+
+  /* Teal, not blue: deep pine as the workhorse, bright aqua as its partner. */
+  --accent:#0C7A6B;
+  --accent-2:#10B49A;
+  --accent-deep:#085C50;
+  --accent-soft:#E4F4F0;
+  --accent-ring:rgba(12,122,107,.30);
+
+  --ok:#0F8A5F;
+
+  /* Fixed material for the two demo panes: a sheet of paper, a machine. */
+  --doc-bg:#FAFBF9;
+  --doc-ink:#15201E;
+  --doc-ink-2:#79837E;
+  --doc-rule:#E5EBE8;
+  --doc-accent:#0C7A6B;
+  --doc-cut:rgba(121,131,126,.16);
+  --doc-add:rgba(12,122,107,.12);
+
+  --mdl-bg:#08120F;
+  --mdl-ink:#DFEAE6;
+  --mdl-ink-2:#7E8F8A;
+  --mdl-rule:#1A2A26;
+  --mdl-accent:#5FE3C8;
+  --mdl-cut:rgba(126,143,138,.16);
+  --mdl-add:rgba(95,227,200,.16);
+
+  --disp:'DM Sans','Segoe UI',system-ui,sans-serif;
+  --body:'DM Sans','Segoe UI',system-ui,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Consolas,monospace;
+
+  /* ── type scale ────────────────────────────────────────────────────────
+     Measured off the two reference sites rather than invented. open-design.ai
+     runs its hero at clamp(34px,4vw,58px) and its section heads at
+     clamp(26px,3vw,42px); openknowledge.ai caps its scale at text-6xl (60px).
+     Both keep body text at 16px and metadata down at 11–13px, and both run
+     their type noticeably smaller than a typical landing page.              */
+  --fs-hero:clamp(2.125rem,4.1vw,3.625rem);   /* 34 → 58px */
+  --fs-h2:clamp(1.625rem,3vw,2.625rem);       /* 26 → 42px */
+  --fs-h3:1.25rem;                            /* 20px */
+  --fs-h4:1.0625rem;                          /* 17px */
+  --fs-lead:clamp(.9375rem,1.1vw,1.0625rem);  /* 15 → 17px */
+  --fs-body:1rem;                             /* 16px */
+  --fs-sm:.875rem;                            /* 14px */
+  --fs-xs:.8125rem;                           /* 13px */
+  --fs-2xs:.6875rem;                          /* 11px */
+  --fs-mono:.8125rem;                         /* 13px */
+
+  --sh-1:0 1px 2px rgba(21,32,30,.04), 0 4px 14px rgba(21,32,30,.05);
+  --sh-2:0 2px 6px rgba(21,32,30,.05), 0 18px 44px rgba(21,32,30,.07);
+  --sh-3:0 4px 12px rgba(21,32,30,.05), 0 40px 90px rgba(21,32,30,.10);
+  --sh-accent:0 10px 34px rgba(12,122,107,.24);
+
+  --r-sm:10px; --r:18px; --r-lg:24px; --r-xl:32px;
+  --ease:cubic-bezier(.32,.72,0,1);
+  --ease-soft:cubic-bezier(.4,0,.2,1);
+
+  --sec:clamp(84px,10vw,150px);
+  --gut:clamp(20px,5vw,44px);
+}
+
+/* ══ base ═══════════════════════════════════════════════════════════════ */
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:var(--body);font-size:var(--fs-body);line-height:1.55;
+  letter-spacing:-.006em;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  /* clip, not hidden: `hidden` would make body a scroll container and break
+     every position:sticky on the page. */
+  overflow-x:clip;
+}
+h1,h2,h3,h4{font-family:var(--disp);margin:0;font-weight:600;letter-spacing:-.02em;line-height:1.1;text-wrap:balance}
+h1{letter-spacing:-.028em;line-height:1.06}
+p{margin:0}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;letter-spacing:inherit}
+:focus-visible{outline:3px solid var(--accent-ring);outline-offset:3px;border-radius:6px}
+svg{display:block}
+img{max-width:100%}
+
+.wrap{max-width:1140px;margin-inline:auto;padding-inline:var(--gut)}
+.wrap-n{max-width:940px;margin-inline:auto;padding-inline:var(--gut)}
+.mono{font-family:var(--mono);font-size:var(--fs-2xs);letter-spacing:.07em;text-transform:uppercase;font-weight:500}
+
+/* glass, used as one consistent surface language */
+.glass{
+  background:rgba(255,255,255,.62);
+  -webkit-backdrop-filter:saturate(180%) blur(18px);
+  backdrop-filter:saturate(180%) blur(18px);
+  border:1px solid rgba(255,255,255,.7);
+  box-shadow:0 2px 8px rgba(21,32,30,.05), 0 14px 40px rgba(21,32,30,.08),
+             inset 0 1px 0 rgba(255,255,255,.85);
+}
+
+/* ══ nav ════════════════════════════════════════════════════════════════ */
+.hdr{
+  position:sticky;top:env(safe-area-inset-top,0px);z-index:80;
+  background:rgba(255,255,255,.66);
+  -webkit-backdrop-filter:saturate(180%) blur(22px);
+  backdrop-filter:saturate(180%) blur(22px);
+  border-bottom:1px solid transparent;
+  transition:border-color .35s var(--ease-soft),background .35s var(--ease-soft);
+}
+.hdr.stuck{border-bottom-color:var(--rule);background:rgba(255,255,255,.82)}
+.hdr-in{display:flex;align-items:center;gap:30px;height:60px}
+.brand{display:flex;align-items:center;gap:8px;font-family:var(--disp);font-weight:700;font-size:1.0625rem;letter-spacing:-.03em}
+.brand svg{flex:none}
+.nav{display:none;gap:2px;margin-inline:auto;font-size:.8125rem;color:var(--ink-2)}
+@media (min-width:900px){.nav{display:flex}}
+.nav a{position:relative;padding:8px 12px;border-radius:8px;transition:color .25s}
+.nav a::after{
+  content:"";position:absolute;left:12px;right:12px;bottom:4px;height:1.5px;
+  background:var(--accent);border-radius:2px;
+  transform:scaleX(0);transform-origin:left;
+  transition:transform .34s var(--ease);
+}
+.nav a:hover{color:var(--ink)}
+.nav a:hover::after{transform:scaleX(1)}
+.hdr .btn{margin-left:auto}
+@media (min-width:900px){.hdr .btn{margin-left:0}}
+
+/* progress lives on the header's own bottom edge — no floating line */
+.hdr::after{
+  content:"";position:absolute;left:0;bottom:-1px;height:2px;width:100%;
+  background:linear-gradient(90deg,var(--accent),var(--accent-2));
+  transform:scaleX(0);transform-origin:0 50%;
+  box-shadow:0 0 10px var(--accent-ring);
+  opacity:0;transition:opacity .4s var(--ease-soft);
+}
+.hdr.stuck::after{opacity:1;transform:scaleX(var(--p,0))}
+
+/* ══ buttons ════════════════════════════════════════════════════════════ */
+.btn{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  font-size:var(--fs-sm);font-weight:500;line-height:1;letter-spacing:-.004em;
+  padding:12px 21px;border-radius:980px;overflow:hidden;
+  transition:transform .38s var(--ease),background .22s,color .22s,box-shadow .38s var(--ease),border-color .22s;
+  white-space:nowrap;
+}
+/* one glass sheen pass, on hover, for every button */
+.btn::before{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.42) 48%,transparent 62%);
+  transform:translateX(-130%);
+  transition:transform .72s var(--ease);
+}
+.btn:hover::before{transform:translateX(130%)}
+.btn > *{position:relative}
+
+.btn-p{background:var(--accent);color:#fff;box-shadow:var(--sh-accent),inset 0 1px 0 rgba(255,255,255,.22)}
+.btn-p:hover{background:var(--accent-deep);transform:translateY(-2px);box-shadow:0 16px 42px rgba(12,122,107,.32),inset 0 1px 0 rgba(255,255,255,.28)}
+.btn-p:active{transform:translateY(0) scale(.985)}
+
+/* the header CTA: ink, not accent — the accent is for the page, not the chrome */
+.btn-ink{
+  background:var(--ink);color:#fff;font-size:.8125rem;padding:10px 16px 10px 18px;
+  box-shadow:0 4px 16px rgba(21,32,30,.20), inset 0 1px 0 rgba(255,255,255,.16);
+}
+.btn-ink:hover{transform:translateY(-1px);box-shadow:0 10px 26px rgba(21,32,30,.28), inset 0 1px 0 rgba(255,255,255,.22)}
+.btn-ink .arw{transition:transform .34s var(--ease)}
+.btn-ink:hover .arw{transform:translateX(3px)}
+
+.btn-s{border:1px solid var(--rule);color:var(--ink);background:rgba(255,255,255,.7)}
+.btn-s:hover{border-color:var(--ink-3);transform:translateY(-2px);box-shadow:var(--sh-2)}
+
+.tlink{display:inline-flex;align-items:center;gap:6px;color:var(--accent);font-size:.9375rem;font-weight:500}
+.tlink svg{transition:transform .3s var(--ease)}
+.tlink:hover svg{transform:translateX(4px)}
+
+/* ══ hero ═══════════════════════════════════════════════════════════════ */
+.hero{position:relative;overflow:hidden;padding-block:clamp(42px,4.8vw,68px) clamp(40px,4.5vw,62px)}
+
+/* Two-scale grid: 28px cells, emphasised every 4th line, drifting one major
+   cell on a 44s loop so it never visibly restarts. */
+.grid{
+  position:absolute;inset:-10% -4% auto;height:115%;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(12,122,107,.075) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(12,122,107,.075) 1px,transparent 1px),
+    linear-gradient(rgba(21,32,30,.042) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(21,32,30,.042) 1px,transparent 1px);
+  background-size:112px 112px,112px 112px,28px 28px,28px 28px;
+  -webkit-mask-image:radial-gradient(82% 66% at 50% 20%,#000 0%,rgba(0,0,0,.5) 54%,transparent 84%);
+  mask-image:radial-gradient(82% 66% at 50% 20%,#000 0%,rgba(0,0,0,.5) 54%,transparent 84%);
+  animation:gridDrift 44s linear infinite;
+}
+@keyframes gridDrift{
+  to{background-position:112px 112px,112px 112px,28px 28px,28px 28px}
+}
+/* the horizon glow sits under the grid so lines read as etched into it */
+.bloom{
+  position:absolute;inset:-30% -18% auto;height:820px;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(40% 44% at 24% 32%, rgba(16,180,154,.16), transparent 68%),
+    radial-gradient(36% 42% at 76% 24%, rgba(90,140,255,.10), transparent 66%),
+    radial-gradient(32% 38% at 50% 4%, rgba(12,122,107,.13), transparent 70%);
+  filter:blur(14px);
+  animation:breathe 20s var(--ease-soft) infinite alternate;
+}
+@keyframes breathe{from{transform:translate3d(-1.6%,0,0) scale(1)}to{transform:translate3d(1.6%,-1.6%,0) scale(1.05)}}
+
+.hero-in{position:relative;z-index:1;text-align:center}
+
+/* announcement, as glass rather than a full-bleed dark strip */
+.ann{
+  display:inline-flex;align-items:center;gap:9px;margin-bottom:24px;
+  font-size:.78rem;font-weight:500;color:var(--ink-2);
+  padding:7px 15px 7px 12px;border-radius:980px;
+  transition:transform .38s var(--ease),box-shadow .38s var(--ease);
+}
+.ann:hover{transform:translateY(-2px)}
+.ann .dot{
+  width:6px;height:6px;border-radius:50%;background:var(--accent);flex:none;
+  box-shadow:0 0 0 3px var(--accent-soft);
+}
+.ann b{color:var(--ink);font-weight:600}
+.ann .arw{transition:transform .34s var(--ease);color:var(--accent)}
+.ann:hover .arw{transform:translateX(3px)}
+
+/* the two .mask spans force the break, so max-width only has to be wide
+   enough not to wrap them again — hence px, not ch. */
+h1.hero-t{font-size:var(--fs-hero);line-height:1.06;margin-inline:auto;max-width:1000px}
+.grad{
+  background:linear-gradient(96deg,var(--accent) 10%,var(--accent-2) 46%,#5A8CFF 78%,var(--accent) 98%);
+  background-size:220% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:sheen 11s linear infinite;
+}
+@keyframes sheen{to{background-position:220% 0}}
+.hero-sub{
+  margin:20px auto 0;max-width:58ch;
+  font-size:var(--fs-lead);color:var(--ink-2);line-height:1.58;
+}
+.hero-cta{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:28px}
+.hero-note{margin-top:16px;font-size:var(--fs-xs);color:var(--ink-3)}
+
+/* ── hero visual ───────────────────────────────────────────────────────── */
+/* position:relative here, not on .shot — the floating chip is a sibling of
+   .shot so it can sit outside the box without being clipped. */
+.shot-wrap{position:relative;margin:clamp(36px,4.2vw,56px) auto 0;max-width:900px;perspective:1600px}
+.shot{
+  position:relative;border-radius:var(--r-xl);background:var(--surface);
+  border:1px solid var(--rule);box-shadow:var(--sh-3);
+  transform-style:preserve-3d;will-change:transform;
+  /* rounded corners are carried by the end caps, so the floating chip can
+     sit outside the box without being clipped */
+}
+.shot-top{
+  display:flex;align-items:center;gap:12px;
+  padding:14px 18px;border-bottom:1px solid var(--rule);background:var(--surface-2);
+  border-radius:calc(var(--r-xl) - 1px) calc(var(--r-xl) - 1px) 0 0;
+}
+.dots{display:flex;gap:6px}
+.dots i{width:10px;height:10px;border-radius:50%;background:var(--rule);display:block}
+.shot-top .lab{
+  margin-left:auto;font-family:var(--mono);font-size:.68rem;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--ink-3);
+}
+.shot-body{padding:clamp(22px,3vw,34px)}
+.shot-foot{
+  display:flex;flex-wrap:wrap;gap:10px;align-items:center;
+  padding:14px 18px;border-top:1px solid var(--rule);background:var(--surface-2);
+  border-radius:0 0 calc(var(--r-xl) - 1px) calc(var(--r-xl) - 1px);
+  font-family:var(--mono);font-size:.7rem;letter-spacing:.055em;text-transform:uppercase;color:var(--ink-3);
+}
+.pill{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:5px 11px;border-radius:980px;font-family:var(--mono);
+  font-size:.68rem;letter-spacing:.055em;text-transform:uppercase;font-weight:500;
+}
+.pill-b{background:var(--accent-soft);color:var(--accent)}
+.pill-g{background:#E4F5EC;color:var(--ok)}
+
+.float{
+  position:absolute;right:-14px;top:88px;z-index:3;
+  border-radius:var(--r);padding:13px 17px;
+  display:flex;align-items:center;gap:11px;
+  animation:float 6.5s var(--ease-soft) infinite alternate;
+}
+@media (max-width:800px){.float{display:none}}
+@keyframes float{from{transform:translateY(0)}to{transform:translateY(-12px)}}
+.float .n{font-family:var(--disp);font-size:1.5rem;font-weight:700;color:var(--accent);letter-spacing:-.04em;line-height:1}
+.float .t{font-size:.75rem;color:var(--ink-2);line-height:1.35}
+
+/* ══ prompt text ════════════════════════════════════════════════════════ */
+/* JetBrains Mono is wider and has a taller x-height than the face this
+   replaced, so it sets a step smaller for the same optical size. */
+.ptxt{font-family:var(--mono);font-size:var(--fs-mono);line-height:1.85;letter-spacing:-.015em;word-break:break-word}
+.cut{position:relative;color:var(--doc-ink-2);text-decoration:line-through;text-decoration-color:transparent}
+.cut::after{
+  content:"";position:absolute;left:-1px;right:-1px;top:52%;height:1.5px;
+  background:currentColor;opacity:.6;border-radius:1px;
+  transform:scaleX(1);transform-origin:left;
+}
+.add{background:var(--doc-add);color:var(--doc-accent);font-weight:500;border-radius:3px}
+.pane-mdl .cut{color:var(--mdl-ink-2)}
+.pane-mdl .add{background:var(--mdl-add);color:var(--mdl-accent)}
+
+/* with JS the strike draws itself and the insertion fades in behind it */
+.js .go .cut::after{transform:scaleX(0)}
+.js .go.go-run .cut::after{
+  transform:scaleX(1);
+  transition:transform .44s var(--ease-soft);
+  transition-delay:calc(var(--i,0) * 92ms);
+}
+.js .go .add{opacity:0;filter:blur(3px)}
+.js .go.go-run .add{
+  opacity:1;filter:blur(0);
+  transition:opacity .42s var(--ease-soft),filter .42s var(--ease-soft);
+  transition-delay:calc(var(--i,0) * 92ms + 200ms);
+}
+
+/* ══ section furniture ══════════════════════════════════════════════════ */
+section{position:relative}
+.sec{padding-block:var(--sec)}
+.sec-band{background:var(--band)}
+
+/* Two header treatments, alternated down the page so the rhythm does not
+   read as a single repeated block. */
+.head{margin-bottom:clamp(44px,5vw,68px)}
+.head-c{max-width:760px;margin-inline:auto;text-align:center}
+.head-l{max-width:820px;text-align:left}
+.head .mono{color:var(--accent);display:block;margin-bottom:16px}
+.head h2{font-size:var(--fs-h2);letter-spacing:-.022em}
+.head p{margin-top:15px;color:var(--ink-2);font-size:var(--fs-lead);line-height:1.58}
+.head-rule{
+  height:1px;background:var(--rule);margin-bottom:22px;transform-origin:left;
+}
+.js .head-rule{transform:scaleX(0)}
+.js .head-rule.on{transform:scaleX(1);transition:transform .9s var(--ease)}
+
+/* ══ reveal system ══════════════════════════════════════════════════════ */
+.js .rv{opacity:0;transform:translateY(26px)}
+.js .rv.on{
+  opacity:1;transform:none;
+  transition:opacity .78s var(--ease-soft),transform .78s var(--ease);
+  transition-delay:var(--d,0ms);
+}
+/* word-level reveal for headings */
+.js .wsplit .w{display:inline-block;opacity:0;transform:translateY(.42em);filter:blur(5px)}
+.js .wsplit.on .w{
+  opacity:1;transform:none;filter:blur(0);
+  transition:opacity .58s var(--ease-soft),transform .7s var(--ease),filter .58s var(--ease-soft);
+  transition-delay:calc(var(--wi,0) * 40ms);
+}
+@media (prefers-reduced-motion:reduce){
+  .js .rv{opacity:1 !important;transform:none !important}
+  .js .wsplit .w{opacity:1 !important;transform:none !important;filter:none !important}
+  .js .head-rule{transform:scaleX(1) !important}
+  .js .go .cut::after{transform:scaleX(1) !important}
+  .js .go .add{opacity:1 !important;filter:none !important}
+  .grid,.bloom,.grad,.float,.marq-track,.hero::before{animation:none !important}
+  .js .mask>span>i{transform:none !important}
+}
+
+.mask{display:block;overflow:hidden;padding-block:.13em;margin-block:-.065em}
+.mask>span{display:block}
+.js .mask>span>i{display:block;font-style:normal;transform:translateY(105%);animation:lineUp 1.05s var(--ease) both}
+.js .mask:nth-of-type(1)>span>i{animation-delay:.06s}
+.js .mask:nth-of-type(2)>span>i{animation-delay:.17s}
+@keyframes lineUp{to{transform:none}}
+/* the gradient line needs both animations; the rule above would otherwise
+   win on specificity and drop the sheen. */
+.js .mask>span>i.grad{animation:lineUp 1.05s var(--ease) both,sheen 11s linear infinite}
+
+/* ══ thesis ═════════════════════════════════════════════════════════════ */
+.thesis{text-align:center}
+.thesis h2{font-size:var(--fs-h2);max-width:24ch;margin-inline:auto}
+.morph-line{
+  margin-top:clamp(34px,4.2vw,54px);
+  font-family:var(--mono);font-size:clamp(.875rem,1.75vw,1.25rem);
+  line-height:1.8;letter-spacing:-.018em;
+  max-width:34ch;margin-inline:auto;text-align:left;
+}
+.m-repl{
+  display:inline-block;overflow:hidden;white-space:nowrap;vertical-align:bottom;
+  max-width:40ch;color:var(--accent);font-weight:500;
+  background:var(--accent-soft);border-radius:4px;padding-inline:2px;
+}
+.js .morph .m-repl{max-width:0;opacity:0;padding-inline:0}
+.js .morph.go .m-repl{
+  max-width:40ch;opacity:1;padding-inline:2px;
+  transition:max-width .62s var(--ease) .36s,opacity .34s var(--ease-soft) .36s,padding .3s;
+}
+.m-orig{position:relative;color:var(--ink-3)}
+.m-orig::after{
+  content:"";position:absolute;left:-2px;right:-2px;top:53%;height:2px;
+  background:var(--accent);border-radius:1px;transform-origin:left;
+}
+.js .morph .m-orig::after{transform:scaleX(0)}
+.js .morph.go .m-orig::after{transform:scaleX(1);transition:transform .5s var(--ease-soft)}
+.thesis .after-note{margin-top:26px;color:var(--ink-3);font-size:.875rem}
+
+/* ══ marquee ════════════════════════════════════════════════════════════ */
+.marq{
+  overflow:hidden;padding-block:26px;border-block:1px solid var(--rule);
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);
+  mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);
+}
+.marq-track{display:flex;width:max-content;animation:slide 48s linear infinite}
+.marq:hover .marq-track{animation-play-state:paused}
+@keyframes slide{to{transform:translateX(-50%)}}
+.marq-set{display:flex;align-items:center}
+.marq-set span{
+  font-family:var(--mono);font-size:.78rem;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--ink-3);padding-inline:26px;white-space:nowrap;
+}
+.marq-set span::after{
+  content:"";display:inline-block;width:4px;height:4px;border-radius:50%;
+  background:var(--rule);margin-left:26px;vertical-align:middle;
+}
+
+/* ══ transformer ════════════════════════════════════════════════════════ */
+.tabs{
+  display:inline-flex;flex-wrap:wrap;gap:4px;justify-content:center;
+  padding:5px;border-radius:980px;margin:0 auto 22px;
+}
+.tabs-wrap{display:flex;justify-content:center}
+.tabs button{
+  font-size:.875rem;font-weight:450;padding:9px 17px;border-radius:980px;
+  color:var(--ink-2);transition:all .3s var(--ease);
+}
+.tabs button:hover{color:var(--ink);background:rgba(255,255,255,.6)}
+.tabs button[aria-pressed="true"]{
+  background:var(--ink);color:#fff;font-weight:500;
+  box-shadow:0 4px 14px rgba(21,32,30,.22);
+}
+
+.bar{
+  display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px;
+  justify-content:center;margin-bottom:20px;text-align:center;
+}
+.bar .case{font-size:.9375rem;color:var(--ink-2);flex:1 1 100%;order:2}
+@media (min-width:820px){.bar .case{flex:0 1 auto;order:1;text-align:left;margin-right:auto}}
+.bar .stat{font-family:var(--mono);font-size:.7rem;letter-spacing:.065em;text-transform:uppercase;color:var(--accent);order:1}
+@media (min-width:820px){.bar .stat{order:2}}
+
+.seg{display:inline-flex;background:var(--band);border-radius:980px;padding:3px;order:3;border:1px solid var(--rule)}
+.seg button{font-size:.8125rem;font-weight:450;padding:7px 15px;border-radius:980px;color:var(--ink-2);transition:all .3s var(--ease)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);font-weight:500;box-shadow:var(--sh-1)}
+
+.panes{
+  display:grid;border-radius:var(--r-lg);overflow:hidden;
+  box-shadow:var(--sh-3);border:1px solid var(--rule);background:var(--surface);
+}
+@media (min-width:880px){.panes{grid-template-columns:1fr 1fr}}
+.pane{padding:clamp(22px,3vw,32px);min-width:0}
+.pane-doc{background:var(--doc-bg);color:var(--doc-ink)}
+.pane-mdl{background:var(--mdl-bg);color:var(--mdl-ink)}
+.pane-lab{
+  display:flex;align-items:center;gap:9px;
+  font-family:var(--mono);font-size:.68rem;letter-spacing:.085em;text-transform:uppercase;
+  padding-bottom:13px;margin-bottom:18px;border-bottom:1px solid;
+}
+.pane-doc .pane-lab{color:var(--doc-ink-2);border-color:var(--doc-rule)}
+.pane-mdl .pane-lab{color:var(--mdl-ink-2);border-color:var(--mdl-rule)}
+.pane-lab i{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.5;flex:none}
+.pane-doc .ptxt{color:var(--doc-ink)}
+.pane-mdl .ptxt{color:var(--mdl-ink)}
+.demo-note{
+  margin-top:18px;padding:18px 20px;border-radius:var(--r);
+  background:var(--surface);border:1px solid var(--rule);box-shadow:var(--sh-1);
+  font-size:var(--fs-sm);color:var(--ink-2);line-height:1.6;
+}
+.demo-note b{color:var(--ink);font-weight:600}
+
+/* ══ pinned method ══════════════════════════════════════════════════════ */
+.how-grid{display:grid;gap:clamp(30px,4vw,60px)}
+@media (min-width:940px){.how-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(40px,5vw,84px)}}
+@media (min-width:940px){
+  .how-vis{position:sticky;top:calc(60px + 40px + env(safe-area-inset-top,0px));height:min(60vh,460px)}
+}
+/* Below the pin breakpoint the stage cards would read as three visuals
+   followed by three near-identical paragraphs, so the prose carries it. */
+@media (max-width:939px){.how-vis{display:none}}
+.stage{
+  position:absolute;inset:0;border-radius:var(--r-lg);background:var(--surface);
+  border:1px solid var(--rule);box-shadow:var(--sh-2);padding:clamp(20px,2.6vw,30px);
+  display:flex;flex-direction:column;overflow:hidden;
+  opacity:0;transform:scale(.965) translateY(14px);pointer-events:none;
+  transition:opacity .62s var(--ease-soft),transform .62s var(--ease);
+}
+.stage.on{opacity:1;transform:none;pointer-events:auto}
+.stage-top{display:flex;align-items:center;gap:10px;padding-bottom:14px;margin-bottom:18px;border-bottom:1px solid var(--rule)}
+.stage-top .n{
+  font-family:var(--mono);font-size:.68rem;font-weight:600;letter-spacing:.055em;
+  color:#fff;background:var(--accent);border-radius:980px;padding:3px 9px;
+}
+.stage-top .t{font-family:var(--mono);font-size:.68rem;letter-spacing:.075em;text-transform:uppercase;color:var(--ink-3)}
+.stage-body{flex:1;min-height:0;overflow:hidden}
+.stage .ptxt{font-size:.8125rem;line-height:1.95}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:16px}
+.chips span{
+  font-family:var(--mono);font-size:.68rem;letter-spacing:.05em;
+  padding:5px 11px;border-radius:980px;border:1px solid var(--rule);color:var(--ink-2);
+}
+.chips span.keep{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.chips span.drop{border-style:dashed;color:var(--ink-3)}
+
+.rail{display:none}
+@media (min-width:940px){.rail{display:flex;flex-direction:column;gap:10px;margin-top:22px}}
+.rail button{display:flex;align-items:center;gap:12px;text-align:left;font-size:.875rem;color:var(--ink-3);transition:color .3s var(--ease-soft)}
+.rail button i{
+  width:2px;height:26px;border-radius:2px;background:var(--rule);flex:none;
+  transition:background .45s var(--ease-soft),height .45s var(--ease),box-shadow .45s;
+}
+.rail button.on{color:var(--ink);font-weight:500}
+.rail button.on i{background:var(--accent);height:34px;box-shadow:0 0 10px var(--accent-ring)}
+
+.how-steps{display:flex;flex-direction:column;gap:clamp(30px,4vw,52px)}
+@media (min-width:940px){.how-steps{gap:0}}
+.step{padding-block:0}
+@media (min-width:940px){.step{min-height:72vh;display:flex;flex-direction:column;justify-content:center;padding-block:8vh}}
+.step .mono{color:var(--accent);display:block;margin-bottom:14px}
+.step h3{font-size:clamp(1.125rem,1.8vw,1.4rem);margin-bottom:12px;letter-spacing:-.02em}
+.step p{color:var(--ink-2);max-width:52ch;line-height:1.62;font-size:var(--fs-sm)}
+
+/* ══ pairing ════════════════════════════════════════════════════════════ */
+.pairs{border-radius:var(--r-lg);background:var(--surface);border:1px solid var(--rule);box-shadow:var(--sh-2);overflow:hidden}
+.pair{
+  display:grid;grid-template-columns:1fr auto;gap:12px 18px;align-items:center;
+  padding:18px clamp(18px,2.6vw,28px);border-bottom:1px solid var(--rule-soft);
+}
+.pair:last-of-type{border-bottom:0}
+.pair p{font-family:var(--mono);font-size:var(--fs-xs);line-height:1.6;min-width:0}
+.lead{
+  font-family:var(--mono);font-size:var(--fs-2xs);letter-spacing:.06em;text-transform:uppercase;
+  padding:4px 10px;border-radius:980px;white-space:nowrap;background:var(--band);color:var(--ink-3);
+}
+.lead.a{background:var(--accent-soft);color:var(--accent)}
+.balance{padding:clamp(18px,2.6vw,26px);background:var(--band);border-top:1px solid var(--rule);display:grid;gap:14px}
+.bal-row{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center}
+.bal-lab{font-family:var(--mono);font-size:.68rem;letter-spacing:.055em;text-transform:uppercase;color:var(--ink-2);white-space:nowrap}
+.bal-bar{height:8px;border-radius:980px;background:var(--rule);overflow:hidden}
+.bal-bar i{
+  display:block;height:100%;width:0;border-radius:980px;
+  background:linear-gradient(90deg,var(--accent),var(--accent-2));
+  box-shadow:0 0 10px var(--accent-ring);
+  transition:width 1.15s var(--ease);
+}
+.bal-num{font-family:var(--mono);font-size:.82rem;font-variant-numeric:tabular-nums;font-weight:500}
+.verdict{
+  display:inline-flex;align-items:center;gap:8px;justify-self:start;
+  font-family:var(--mono);font-size:.68rem;letter-spacing:.065em;text-transform:uppercase;
+  color:var(--ok);background:#E4F5EC;padding:6px 13px;border-radius:980px;font-weight:500;
+}
+
+/* ══ return pass ════════════════════════════════════════════════════════ */
+.ret{border-radius:var(--r-lg);background:var(--surface);border:1px solid var(--rule);box-shadow:var(--sh-2);overflow:hidden}
+.ret-head{
+  display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;
+  padding:16px clamp(18px,2.6vw,28px);border-bottom:1px solid var(--rule);background:var(--surface-2);
+}
+.ret-head .mono{color:var(--ink-3)}
+.ret-body{padding:clamp(22px,2.8vw,34px);font-size:var(--fs-body);line-height:1.75;min-height:150px}
+.ret-body .u{background:var(--accent-soft);color:var(--accent);font-weight:500;padding:1px 3px;border-radius:4px}
+.ret-foot{
+  padding:16px clamp(18px,2.6vw,28px);border-top:1px solid var(--rule);
+  background:var(--surface-2);font-size:.8125rem;color:var(--ink-2);line-height:1.55;
+}
+.slide-in{animation:sf .55s var(--ease-soft)}
+@keyframes sf{from{opacity:0;transform:translateY(10px);filter:blur(3px)}to{opacity:1;transform:none;filter:blur(0)}}
+
+/* ══ leak cards ═════════════════════════════════════════════════════════ */
+.leaks{display:grid;gap:20px}
+@media (min-width:880px){.leaks{grid-template-columns:repeat(3,1fr)}}
+.leak{
+  position:relative;overflow:hidden;
+  background:var(--surface);border:1px solid var(--rule);border-radius:var(--r-lg);
+  padding:clamp(24px,3vw,32px);box-shadow:var(--sh-1);
+  transition:transform .5s var(--ease),box-shadow .5s var(--ease),border-color .35s;
+}
+.leak::before{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:radial-gradient(340px 260px at var(--mx,50%) var(--my,0%),var(--accent-soft),transparent 68%);
+  opacity:0;transition:opacity .45s var(--ease-soft);
+}
+.leak:hover{transform:translateY(-6px);box-shadow:var(--sh-3);border-color:var(--rule-soft)}
+.leak:hover::before{opacity:.8}
+.leak > *{position:relative}
+.leak .idx{font-family:var(--mono);font-size:.68rem;letter-spacing:.085em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:16px}
+.leak h3{font-size:var(--fs-h3);margin-bottom:10px;letter-spacing:-.02em}
+.leak .tk{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0 18px}
+.leak .tk span{font-family:var(--mono);font-size:.7rem;padding:5px 10px;border-radius:980px;background:var(--accent-soft);color:var(--accent)}
+.leak p{font-size:.9375rem;color:var(--ink-2);line-height:1.6}
+.leaks-note{text-align:center;margin-top:clamp(30px,4vw,44px);color:var(--ink-2);max-width:64ch;margin-inline:auto}
+
+/* ══ spec sheet ════════════════════════════════════════════════════════ */
+.spec{border-radius:var(--r-lg);background:var(--surface);border:1px solid var(--rule);overflow:hidden;box-shadow:var(--sh-1)}
+.spec-row{display:grid;gap:8px 28px;padding:20px clamp(20px,3vw,32px);border-bottom:1px solid var(--rule-soft)}
+@media (min-width:760px){.spec-row{grid-template-columns:230px 1fr}}
+.spec-row:last-child{border-bottom:0}
+.spec-row dt{font-family:var(--mono);font-size:.72rem;letter-spacing:.065em;text-transform:uppercase;color:var(--ink-3);padding-top:2px}
+.spec-row dd{margin:0;font-size:.9875rem;color:var(--ink);line-height:1.55}
+.spec-row dd b{font-weight:600}
+.js .spec-row{opacity:0;transform:translateX(-14px)}
+.js .spec-row.on{opacity:1;transform:none;transition:opacity .6s var(--ease-soft),transform .7s var(--ease);transition-delay:calc(var(--si,0) * 70ms)}
+.spec-note{text-align:center;margin-top:22px;font-size:.8125rem;color:var(--ink-3)}
+
+/* ══ limits ════════════════════════════════════════════════════════════ */
+.limits{display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:var(--r-lg);overflow:hidden}
+@media (min-width:800px){.limits{grid-template-columns:1fr 1fr}}
+.limit{background:var(--surface);padding:clamp(24px,3vw,34px);transition:background .35s}
+.limit:hover{background:var(--surface-2)}
+.limit h3{font-size:var(--fs-h4);margin-bottom:9px;letter-spacing:-.018em;display:flex;align-items:flex-start;gap:10px}
+.limit h3::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--rule);flex:none;margin-top:8px;transition:background .35s}
+.limit:hover h3::before{background:var(--accent)}
+.limit p{font-size:.9375rem;color:var(--ink-2);line-height:1.6;padding-left:17px}
+
+/* ══ faq ═══════════════════════════════════════════════════════════════ */
+.faq{max-width:840px;border-top:1px solid var(--rule)}
+.fq{border-bottom:1px solid var(--rule)}
+.fq-q{
+  display:flex;align-items:center;gap:18px;width:100%;text-align:left;
+  padding:20px 4px;font-family:var(--disp);font-size:var(--fs-h4);
+  font-weight:500;letter-spacing:-.016em;transition:color .25s;
+}
+.fq-q:hover{color:var(--accent)}
+.fq-q .pm{margin-left:auto;flex:none;width:22px;height:22px;position:relative;transition:transform .45s var(--ease)}
+.fq-q .pm::before,.fq-q .pm::after{
+  content:"";position:absolute;background:var(--ink-3);border-radius:2px;
+  transition:transform .45s var(--ease),background .25s;
+}
+.fq-q .pm::before{left:0;right:0;top:10px;height:1.5px}
+.fq-q .pm::after{top:0;bottom:0;left:10px;width:1.5px}
+.fq-q[aria-expanded="true"] .pm{transform:rotate(90deg)}
+.fq-q[aria-expanded="true"] .pm::after{transform:scaleY(0)}
+.fq-q[aria-expanded="true"] .pm::before,.fq-q[aria-expanded="true"] .pm::after{background:var(--accent)}
+.fq-a{display:grid;grid-template-rows:0fr;transition:grid-template-rows .5s var(--ease)}
+.fq.on .fq-a{grid-template-rows:1fr}
+.fq-a>div{overflow:hidden}
+.fq-a p{padding:0 4px 26px;color:var(--ink-2);line-height:1.65;max-width:68ch}
+.js .fq{opacity:0;transform:translateY(16px)}
+.js .fq.on-rv{opacity:1;transform:none;transition:opacity .6s var(--ease-soft),transform .65s var(--ease);transition-delay:calc(var(--fi,0) * 55ms)}
+
+/* ══ cta ═══════════════════════════════════════════════════════════════ */
+.cta{
+  position:relative;overflow:hidden;border-radius:var(--r-xl);
+  padding:clamp(46px,6vw,86px) clamp(26px,5vw,64px);text-align:center;
+  background:linear-gradient(180deg,#0B1512,#07100D);color:#fff;box-shadow:var(--sh-3);
+}
+.cta::before{
+  content:"";position:absolute;inset:auto -10% -60% -10%;height:520px;pointer-events:none;
+  background:
+    radial-gradient(46% 52% at 50% 100%, rgba(16,180,154,.50), transparent 70%),
+    radial-gradient(30% 40% at 20% 100%, rgba(12,122,107,.46), transparent 70%),
+    radial-gradient(30% 40% at 80% 100%, rgba(90,140,255,.26), transparent 70%);
+  filter:blur(10px);
+  animation:breathe 16s var(--ease-soft) infinite alternate;
+}
+/* cursor spotlight — the glass surface lighting up under the pointer */
+.cta::after{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:radial-gradient(440px 340px at var(--mx,50%) var(--my,0%),rgba(255,255,255,.11),transparent 62%);
+  opacity:0;transition:opacity .45s var(--ease-soft);
+}
+.cta:hover::after{opacity:1}
+.cta-in{position:relative;z-index:1}
+.cta .mono{color:#5FE3C8;display:block;margin-bottom:18px}
+.cta h2{font-size:var(--fs-h2);letter-spacing:-.024em;max-width:22ch;margin-inline:auto}
+.cta p{margin:18px auto 0;max-width:56ch;color:#9DB0AB;font-size:var(--fs-lead)}
+.cta .row{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-top:34px}
+.cta .btn-s{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.18);color:#fff;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.cta .btn-s:hover{background:rgba(255,255,255,.13);border-color:rgba(255,255,255,.32)}
+.cta .addr{margin-top:22px;font-family:var(--mono);font-size:.75rem;color:#6E807B;letter-spacing:.03em}
+.cta-grid{display:grid;gap:1px;margin-top:clamp(34px,4vw,50px);background:rgba(255,255,255,.10);border-radius:var(--r);overflow:hidden;text-align:left}
+@media (min-width:760px){.cta-grid{grid-template-columns:repeat(3,1fr)}}
+.cta-grid div{background:#0A1310;padding:22px;transition:background .4s}
+.cta-grid div:hover{background:#0E1A16}
+.cta-grid .mono{color:#5FE3C8;display:block;margin-bottom:9px}
+.cta-grid p{color:#9DB0AB;font-size:.9rem;margin:0;max-width:none}
+
+/* ══ footer ════════════════════════════════════════════════════════════ */
+.foot{border-top:1px solid var(--rule);padding-block:clamp(44px,5vw,64px) 34px;font-size:.8125rem;color:var(--ink-2)}
+.foot-grid{display:grid;gap:34px 24px}
+@media (min-width:760px){.foot-grid{grid-template-columns:1.6fr repeat(3,1fr)}}
+.foot-brand .brand{font-size:1.0625rem;color:var(--ink);margin-bottom:14px}
+.foot-brand p{max-width:30ch;line-height:1.6}
+.foot-col h4{font-family:var(--mono);font-size:.68rem;letter-spacing:.085em;text-transform:uppercase;color:var(--ink-3);font-weight:500;margin-bottom:14px}
+.foot-col ul{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.foot-col a{transition:color .2s}
+.foot-col a:hover{color:var(--ink)}
+.foot-base{
+  margin-top:clamp(38px,4vw,54px);padding-top:22px;border-top:1px solid var(--rule);
+  display:flex;flex-wrap:wrap;gap:12px 22px;align-items:center;
+  font-family:var(--mono);font-size:.7rem;letter-spacing:.05em;color:var(--ink-3);
+}
+.foot-base .right{margin-left:auto}
+</style>
+
+<header class="hdr" id="hdr">
+  <div class="wrap hdr-in">
+    <a class="brand" href="#top">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path d="M5 4.5v15M19 4.5v15" stroke="currentColor" stroke-width="1.9" fill="none" stroke-linecap="round"/>
+        <path d="M8.4 12h7.2" stroke="currentColor" stroke-width="1.5" opacity=".3" fill="none" stroke-linecap="round"/>
+        <path d="M7.7 9.4 16.3 14.6" stroke="var(--accent)" stroke-width="1.9" fill="none" stroke-linecap="round"/>
+      </svg>
+      Neutral
+    </a>
+    <nav class="nav">
+      <a href="#examples">Examples</a>
+      <a href="#method">Method</a>
+      <a href="#pairing">Pairing</a>
+      <a href="#limits">Limits</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a class="btn btn-ink" href="#pilot">
+      Start a pilot
+      <svg class="arw" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
+        <path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- ── hero ──────────────────────────────────────────────────────────── -->
+  <section class="hero">
+    <div class="bloom" aria-hidden="true"></div>
+    <div class="grid" aria-hidden="true"></div>
+    <div class="wrap hero-in">
+      <a class="ann glass" href="#pilot">
+        <span class="dot"></span>
+        <span><b>Taking design partners</b> for Q1 pilots</span>
+        <svg class="arw" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+          <path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+
+      <h1 class="hero-t">
+        <span class="mask"><span><i>Every detail in a prompt</i></span></span>
+        <span class="mask"><span><i class="grad">is an instruction.</i></span></span>
+      </h1>
+
+      <p class="hero-sub rv" style="--d:340ms">A model reads a name, a job title, a word like <em>boyfriend</em>, and fills in the rest. Some of what it fills in changes the answer. Neutral sits between your people and the model, removes the detail the question doesn't need, and hands the answer back in their own words.</p>
+
+      <div class="hero-cta rv" style="--d:440ms">
+        <a class="btn btn-p" href="#pilot">Book a pilot</a>
+        <a class="btn btn-s" href="#examples">See it work</a>
+      </div>
+
+      <p class="hero-note rv" style="--d:520ms">Runs in front of the models you already use.</p>
+    </div>
+
+    <div class="wrap">
+      <div class="shot-wrap rv" style="--d:600ms">
+        <div class="shot" id="shot">
+          <div class="shot-top">
+            <span class="dots"><i></i><i></i><i></i></span>
+            <span class="lab">Example &middot; two names</span>
+          </div>
+          <div class="shot-body">
+            <p class="pane-lab" style="color:var(--ink-3);border-color:var(--rule)">
+              <i style="background:var(--accent);opacity:1"></i>What the model actually reads
+            </p>
+            <p class="ptxt go" id="heroTxt"></p>
+          </div>
+          <div class="shot-foot">
+            <span class="pill pill-b">5 spans rewritten</span>
+            <span class="pill pill-g">Positions balanced 3 / 2</span>
+            <span style="margin-left:auto">1 request in &middot; 1 out</span>
+          </div>
+        </div>
+        <div class="float glass" aria-hidden="true">
+          <span class="n">0</span>
+          <span class="t">traits carried<br>into the answer</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── thesis ───────────────────────────────────────────────────────── -->
+  <section class="sec thesis">
+    <div class="wrap-n">
+      <div class="head-rule" data-rule></div>
+      <h2 data-wsplit>The model isn't biased because it was told to be. It's biased because it was told too much.</h2>
+      <p class="morph-line rv" style="--d:120ms">
+        <span class="morph" id="morph"><span class="m-orig">Jabari and Embla</span><span class="m-repl">Person A and Person B</span></span> had a disagreement over the quarterly roadmap.
+      </p>
+      <p class="after-note rv" style="--d:200ms">Two names carried an ethnicity, a gender, and a set of impressions that arrive with the sound of the name. None of it was part of the question.</p>
+    </div>
+  </section>
+
+  <!-- ── marquee ──────────────────────────────────────────────────────── -->
+  <div class="marq" aria-hidden="true">
+    <div class="marq-track">
+      <div class="marq-set">
+        <span>Given names</span><span>Job titles</span><span>Relationship words</span><span>Gendered pronouns</span><span>Sentence order</span><span>Nationality markers</span><span>Age cues</span><span>Single-submission framing</span><span>Honorifics</span><span>Dialect spelling</span>
+      </div>
+      <div class="marq-set">
+        <span>Given names</span><span>Job titles</span><span>Relationship words</span><span>Gendered pronouns</span><span>Sentence order</span><span>Nationality markers</span><span>Age cues</span><span>Single-submission framing</span><span>Honorifics</span><span>Dialect spelling</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── transformer ──────────────────────────────────────────────────── -->
+  <section class="sec" id="examples">
+    <div class="wrap">
+      <div class="head head-l rv">
+        <span class="mono">Worked examples</span>
+        <h2 data-wsplit>What your employee writes, and what the model reads.</h2>
+        <p>Four prompts, before and after. Struck text is dropped before the request leaves; the tinted text is what replaces it.</p>
+      </div>
+
+      <div class="tabs-wrap rv">
+        <div class="tabs glass" role="group" aria-label="Example prompts" id="tabs"></div>
+      </div>
+
+      <div class="bar rv" style="--d:80ms">
+        <span class="stat" id="statLine"></span>
+        <p class="case" id="caseLine"></p>
+        <div class="seg" role="group" aria-label="Right pane shows">
+          <button id="vw-diff" aria-pressed="true">Show edits</button>
+          <button id="vw-clean" aria-pressed="false">Clean prompt</button>
+        </div>
+      </div>
+
+      <div class="panes rv" style="--d:140ms">
+        <div class="pane pane-doc">
+          <p class="pane-lab"><i></i>What the employee types</p>
+          <p class="ptxt" id="txtWritten"></p>
+        </div>
+        <div class="pane pane-mdl">
+          <p class="pane-lab"><i></i>What the model actually reads</p>
+          <p class="ptxt go" id="txtModel"></p>
+        </div>
+      </div>
+      <p class="demo-note rv" style="--d:200ms" id="noteLine"></p>
+    </div>
+  </section>
+
+  <!-- ── pinned method ────────────────────────────────────────────────── -->
+  <section class="sec sec-band" id="method">
+    <div class="wrap">
+      <div class="head head-c rv">
+        <span class="mono">Method</span>
+        <h2 data-wsplit>Three questions, asked of every span.</h2>
+        <p>One request in, one request out, with a decision made per span rather than over the prompt as a whole.</p>
+      </div>
+
+      <div class="how-grid">
+        <div class="how-vis" id="howVis">
+          <div class="stage on" data-stage="0">
+            <div class="stage-top"><span class="n">01</span><span class="t">Tag</span></div>
+            <div class="stage-body">
+              <p class="ptxt"><span class="cut" style="--i:0">Jabari</span> and <span class="cut" style="--i:1">Embla</span> disagreed over the quarterly roadmap. <span class="cut" style="--i:2">Jabari</span> said the timeline was unrealistic.</p>
+              <div class="chips">
+                <span>Name &rarr; ethnicity, gender</span>
+                <span>Name &rarr; impression</span>
+                <span>Pair order &rarr; writer</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="stage" data-stage="1">
+            <div class="stage-top"><span class="n">02</span><span class="t">Necessity</span></div>
+            <div class="stage-body">
+              <p class="ptxt"><span class="cut" style="--i:0">Jabari</span> and <span class="cut" style="--i:1">Embla</span> disagreed over the quarterly roadmap. <span class="cut" style="--i:2">Jabari</span> said the timeline was unrealistic.</p>
+              <div class="chips">
+                <span class="drop">Ethnicity &mdash; not needed</span>
+                <span class="drop">Gender &mdash; not needed</span>
+                <span class="keep">Two people &mdash; keep</span>
+                <span class="keep">The disagreement &mdash; keep</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="stage" data-stage="2">
+            <div class="stage-top"><span class="n">03</span><span class="t">Repair</span></div>
+            <div class="stage-body">
+              <p class="ptxt"><span class="add" style="--i:0">Person A</span> and <span class="add" style="--i:1">Person B</span> disagreed over the quarterly roadmap. <span class="add" style="--i:2">Person B</span> said the timeline was unrealistic.</p>
+              <div class="chips">
+                <span class="keep">2 spans removed</span>
+                <span class="keep">1 span offset</span>
+                <span>Order balanced 1 / 1</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="rail" id="rail">
+            <button type="button" data-goto="0" class="on"><i></i>Tag every span and what it implies</button>
+            <button type="button" data-goto="1"><i></i>Ask whether the task needs it</button>
+            <button type="button" data-goto="2"><i></i>Remove, or offset the inference</button>
+          </div>
+        </div>
+
+        <div class="how-steps" id="howSteps">
+          <article class="step" data-step="0">
+            <span class="mono">01 &mdash; Tag</span>
+            <h3>Mark every span, and what it implies.</h3>
+            <p>Names, pronouns, roles, relationship words, and the traits each one carries at base rates. A span gets marked for what it says and for what it lets the model infer. The second list is longer than the first, and it is the one that matters.</p>
+          </article>
+          <article class="step" data-step="1">
+            <span class="mono">02 &mdash; Necessity</span>
+            <h3>Does the task get worse without it?</h3>
+            <p>A role that is the subject of the task stays. A role mentioned in passing goes. The check runs span by span, so one prompt can get both answers at once, and the reasons are recorded either way.</p>
+          </article>
+          <article class="step" data-step="2">
+            <span class="mono">03 &mdash; Repair</span>
+            <h3>Remove it, or offset it.</h3>
+            <p>Removal when the span does nothing. Counter-balance when it does something and cannot be dropped, which means adding information that offsets the inference. Every counter-balance is logged as a cost, not as a win.</p>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── pairing ──────────────────────────────────────────────────────── -->
+  <section class="sec" id="pairing">
+    <div class="wrap">
+      <div class="head head-c rv">
+        <span class="mono">The pairing constraint</span>
+        <h2 data-wsplit>The order you name two people in is a signal of its own.</h2>
+        <p>Take the names out and the model goes looking for another way to work out which of the two is writing. The cheapest one available is sentence order.</p>
+      </div>
+
+      <div class="pairs rv">
+        <div class="pair">
+          <p>Person A told Person B the timeline was unrealistic.</p>
+          <span class="lead a">A leads</span>
+        </div>
+        <div class="pair">
+          <p>Person B told Person A the date had already been agreed.</p>
+          <span class="lead">B leads</span>
+        </div>
+        <div class="pair">
+          <p>Person A asked Person B to re-plan the quarter.</p>
+          <span class="lead a">A leads</span>
+        </div>
+        <div class="pair">
+          <p>Person B asked Person A to confirm the scope first.</p>
+          <span class="lead">B leads</span>
+        </div>
+        <div class="balance">
+          <div class="bal-row">
+            <span class="bal-lab">Person A leads</span>
+            <span class="bal-bar"><i data-w="50%"></i></span>
+            <span class="bal-num">2</span>
+          </div>
+          <div class="bal-row">
+            <span class="bal-lab">Person B leads</span>
+            <span class="bal-bar"><i data-w="50%"></i></span>
+            <span class="bal-num">2</span>
+          </div>
+          <span class="verdict">Balanced</span>
+        </div>
+      </div>
+
+      <p class="leaks-note rv">When the count is odd, Neutral allows a difference of one and picks the direction at random. It never emits a prompt where one person leads every pair. The sentences still say the same things; only the order changed.</p>
+    </div>
+  </section>
+
+  <!-- ── return pass ──────────────────────────────────────────────────── -->
+  <section class="sec sec-band">
+    <div class="wrap">
+      <div class="head head-l rv">
+        <span class="mono">Return pass</span>
+        <h2 data-wsplit>The answer comes back in the reader's words.</h2>
+        <p>The model answered a prompt that no longer had your people's names in it, so Neutral puts them back, and fixes the pronouns the model chose on its own.</p>
+      </div>
+
+      <div class="ret rv">
+        <div class="ret-head">
+          <span class="mono">The five-essay case</span>
+          <div class="seg" role="group" aria-label="Answer view">
+            <button id="ans-polished" aria-pressed="true">As returned</button>
+            <button id="ans-raw" aria-pressed="false">Model's answer</button>
+          </div>
+        </div>
+        <div class="ret-body" id="ansBody"></div>
+        <p class="ret-foot">The model read five essays and graded them in order. Neutral keeps the passage about your essay, drops the other four, and puts the model's third-person reading of the writer into the second person. The original sits behind the button above, unchanged.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── leakage ──────────────────────────────────────────────────────── -->
+  <section class="sec">
+    <div class="wrap">
+      <div class="head head-c rv">
+        <span class="mono">Where it leaks</span>
+        <h2 data-wsplit>Three ways a prompt carries what it should not.</h2>
+        <p>Only the first is visible to the person writing it. The other two are why dropping names is not enough on its own.</p>
+      </div>
+
+      <div class="leaks">
+        <div class="leak rv" data-spot>
+          <span class="idx">01 &mdash; Stated</span>
+          <h3>Stated</h3>
+          <div class="tk"><span>Jabari</span><span>Embla</span><span>my boyfriend</span><span>I'm the CEO</span></div>
+          <p>A name, a job title, a relationship word. The trait is in the words, and the model has no reason to treat any of it as anything other than true.</p>
+        </div>
+        <div class="leak rv" style="--d:90ms" data-spot>
+          <span class="idx">02 &mdash; Correlated</span>
+          <h3>Correlated</h3>
+          <div class="tk"><span>CEO &rarr; male</span><span>nurse &rarr; female</span><span>Embla &rarr; Norwegian</span></div>
+          <p>Nobody wrote a gender. But a role carries the base rate the model learned for it, and that rate walks into the answer. A trait that was never stated still arrives.</p>
+        </div>
+        <div class="leak rv" style="--d:180ms" data-spot>
+          <span class="idx">03 &mdash; Structural</span>
+          <h3>Structural</h3>
+          <div class="tk"><span>one essay, sent for grading</span></div>
+          <p>One essay submitted for a grade reads as the writer's own, so the model answers the way a teacher answers a student: warm, encouraging, slow to reach for the hard note. No single word caused it. The shape of the request did.</p>
+        </div>
+      </div>
+
+      <p class="leaks-note rv">Neutral treats all three as input it is allowed to change, and it works hardest on the second and third, because those are the ones the person typing cannot see.</p>
+    </div>
+  </section>
+
+  <!-- ── spec ─────────────────────────────────────────────────────────── -->
+  <section class="sec sec-band">
+    <div class="wrap-n">
+      <div class="head head-l rv">
+        <span class="mono">Specification</span>
+        <h2 data-wsplit>What it is, in the terms your security team will ask about.</h2>
+      </div>
+      <dl class="spec" id="specList">
+        <div class="spec-row">
+          <dt>Placement</dt>
+          <dd>In the request path, in front of your model gateway. Hosted, or inside your own tenancy.</dd>
+        </div>
+        <div class="spec-row">
+          <dt>Model support</dt>
+          <dd>Any text model behind an HTTP API. Neutral never sees the model's weights and does not fine-tune anything.</dd>
+        </div>
+        <div class="spec-row">
+          <dt>Latency budget</dt>
+          <dd>A <b>250&nbsp;ms</b> added-latency target per request for prompts under 4,000 tokens. Measured per deployment, not asserted.</dd>
+        </div>
+        <div class="spec-row">
+          <dt>Retention</dt>
+          <dd>Prompts and answers are held for the length of the session by default. Longer retention is opt-in and scoped per team.</dd>
+        </div>
+        <div class="spec-row">
+          <dt>Visibility</dt>
+          <dd>Every rewrite is logged with the span, the decision, and the reason. Nothing is changed silently.</dd>
+        </div>
+        <div class="spec-row">
+          <dt>Rollout</dt>
+          <dd>Shadow mode first. Neutral rewrites in the background and logs the diff without altering what the model sees, until you turn it on.</dd>
+        </div>
+      </dl>
+      <p class="spec-note rv">Targets, not benchmarks. A pilot measures them on your traffic and reports what it finds.</p>
+    </div>
+  </section>
+
+  <!-- ── limits ───────────────────────────────────────────────────────── -->
+  <section class="sec" id="limits">
+    <div class="wrap">
+      <div class="head head-c rv">
+        <span class="mono">Limits</span>
+        <h2 data-wsplit>What Neutral does not do.</h2>
+        <p>Removing information is a real intervention with real costs, and a vendor who will not name them is telling you something about the rest of the pitch.</p>
+      </div>
+
+      <div class="limits rv">
+        <div class="limit">
+          <h3>It does not make a model unbiased</h3>
+          <p>It removes one class of input that bias travels in. Whatever the model learned from its training is still there, waiting for a prompt that gives it something to work with.</p>
+        </div>
+        <div class="limit">
+          <h3>Counter-balancing adds information</h3>
+          <p>Four extra essays so the model cannot tell which one is yours also means four more essays for it to read, and four more chances for it to weight something you did not intend. Neutral takes that route only when removal is unavailable, and records every instance.</p>
+        </div>
+        <div class="limit">
+          <h3>It only sees the prompt</h3>
+          <p>Bias entering through a retrieval corpus, a fine-tune, or a tool's output is outside its reach. Neutral reads the request and the answer, and nothing else.</p>
+        </div>
+        <div class="limit">
+          <h3>Sometimes the detail was load-bearing</h3>
+          <p>Drop a role the task actually turns on and the answer gets worse, not fairer. This is why the necessity check runs span by span, and why a pilot measures answer quality next to bias rather than instead of it.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── faq ──────────────────────────────────────────────────────────── -->
+  <section class="sec sec-band" id="faq">
+    <div class="wrap">
+      <div class="head head-l rv">
+        <span class="mono">Questions</span>
+        <h2 data-wsplit>What buyers ask first.</h2>
+      </div>
+
+      <div class="faq" id="faqList">
+        <div class="fq">
+          <button class="fq-q" aria-expanded="false">Doesn't removing context make the answers worse?</button>
+          <div class="fq-a"><div><p>Sometimes, and that is the whole reason the necessity check exists. Removing a detail the task turns on makes the answer worse, not fairer. Neutral asks per span rather than over the prompt, and the pilot measures answer quality blind, next to the unmodified runs, so the claim is tested instead of asserted.</p></div></div>
+        </div>
+        <div class="fq">
+          <button class="fq-q" aria-expanded="false">Do you store our prompts?</button>
+          <div class="fq-a"><div><p>Not by default. Prompts and answers are held for the length of the session and then released. If your team needs a rewrite log kept for audit, that is opt-in, scoped per team, and stored in your tenancy rather than ours.</p></div></div>
+        </div>
+        <div class="fq">
+          <button class="fq-q" aria-expanded="false">Why not just train people to write better prompts?</button>
+          <div class="fq-a"><div><p>Because two of the three leak types are invisible from where the writer sits. Nobody writing "I'm the CEO" is thinking about base rates, and nobody submitting one essay knows that the shape of the request is what triggers the flattery. Training helps with the stated layer. It does nothing for the other two.</p></div></div>
+        </div>
+        <div class="fq">
+          <button class="fq-q" aria-expanded="false">How do we know what it changed?</button>
+          <div class="fq-a"><div><p>Every rewrite is logged with the span, the decision, and the reason, and the model's untouched answer is always available beside the returned one. Nothing is changed silently, and shadow mode lets you read the diffs for a week before any of them reach the model.</p></div></div>
+        </div>
+        <div class="fq">
+          <button class="fq-q" aria-expanded="false">Is this a compliance product?</button>
+          <div class="fq-a"><div><p>No. It produces evidence you can use in a review, but it does not certify anything and it does not tell you that you are compliant with a regulation. If a vendor tells you a prompt filter does that, ask them which article it satisfies.</p></div></div>
+        </div>
+        <div class="fq">
+          <button class="fq-q" aria-expanded="false">What does the pilot cost?</button>
+          <div class="fq-a"><div><p>Nothing, and it runs for two weeks on one team and one task. You pick the task and the model. If the blind-graded answers are not better than the unmodified runs, the pilot says so in writing and we part ways.</p></div></div>
+        </div>
+        <div class="fq">
+          <button class="fq-q" aria-expanded="false">Where does this sit technically?</button>
+          <div class="fq-a"><div><p>Between your people and your model gateway, as a single HTTP hop. Your existing keys, routing, and logging stay where they are. Rollout is shadow mode first, so you can read a week of diffs before anything changes what the model actually sees.</p></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── cta ──────────────────────────────────────────────────────────── -->
+  <section class="sec" id="pilot">
+    <div class="wrap">
+      <div class="cta rv" id="ctaCard">
+        <div class="cta-in">
+          <span class="mono">Pilot</span>
+          <h2>Run it on your own prompts.</h2>
+          <p>Two weeks, one team, one task. You choose the task, and we send you every prompt Neutral changed, the change it made, and the two answers side by side.</p>
+
+          <div class="cta-grid">
+            <div>
+              <span class="mono">You give us</span>
+              <p>A sample of prompts from one team, and the model you already route them to.</p>
+            </div>
+            <div>
+              <span class="mono">You get back</span>
+              <p>Every changed prompt with its diff, both answers, and the counter-balance log.</p>
+            </div>
+            <div>
+              <span class="mono">The test</span>
+              <p>Blind-graded answer quality next to the unmodified runs. If the answers are not better, the pilot says so.</p>
+            </div>
+          </div>
+
+          <div class="row">
+            <a class="btn btn-p" href="mailto:pilots@neutral.example?subject=Neutral%20pilot">Book a pilot</a>
+            <a class="btn btn-s" href="#examples">See it work first</a>
+          </div>
+          <p class="addr">pilots@neutral.example</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <span class="brand">
+          <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+            <path d="M5 4.5v15M19 4.5v15" stroke="currentColor" stroke-width="1.9" fill="none" stroke-linecap="round"/>
+            <path d="M8.4 12h7.2" stroke="currentColor" stroke-width="1.5" opacity=".3" fill="none" stroke-linecap="round"/>
+            <path d="M7.7 9.4 16.3 14.6" stroke="var(--accent)" stroke-width="1.9" fill="none" stroke-linecap="round"/>
+          </svg>
+          Neutral
+        </span>
+        <p>Sits in the request path. Changes the prompt on the way out and the answer on the way back.</p>
+      </div>
+      <div class="foot-col">
+        <h4>Product</h4>
+        <ul>
+          <li><a href="#examples">Examples</a></li>
+          <li><a href="#method">Method</a></li>
+          <li><a href="#pairing">Pairing</a></li>
+          <li><a href="#pilot">Pilot</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h4>Read</h4>
+        <ul>
+          <li><a href="#limits">Limits</a></li>
+          <li><a href="#faq">Questions</a></li>
+          <li><a href="#examples">Worked cases</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h4>Contact</h4>
+        <ul>
+          <li><a href="mailto:pilots@neutral.example">pilots@neutral.example</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-base">
+      <span>Neutral</span>
+      <span class="right">&copy; 2026 &middot; A concept site</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var hasIO = 'IntersectionObserver' in window;
+  var esc = function (s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  };
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return [].slice.call((r || document).querySelectorAll(s)); };
+
+  /* ── word splitting, for the heading reveal ──────────────────────────── */
+  $$('[data-wsplit]').forEach(function (el) {
+    // textContent only, so this stays correct if the markup is edited later.
+    var words = el.textContent.trim().split(/\s+/);
+    el.textContent = '';
+    words.forEach(function (w, i) {
+      var s = document.createElement('span');
+      s.className = 'w';
+      s.textContent = w;
+      s.style.setProperty('--wi', i);
+      el.appendChild(s);
+      el.appendChild(document.createTextNode(' '));
+    });
+    el.classList.add('wsplit');
+  });
+
+  /* ── one observer, several reveal types ──────────────────────────────── */
+  function observe(els, cb, opts) {
+    els = els.filter(Boolean);           // a missing node must not throw here
+    if (!els.length) return;
+    if (!hasIO || reduced) { els.forEach(cb); return; }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { cb(e.target); io.unobserve(e.target); }
+      });
+    }, opts || { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
+    els.forEach(function (el) { io.observe(el); });
+  }
+
+  observe($$('.rv'), function (el) { el.classList.add('on'); });
+  observe($$('.wsplit'), function (el) { el.classList.add('on'); }, { threshold: 0.3 });
+  observe($$('[data-rule]'), function (el) { el.classList.add('on'); }, { threshold: 0.6 });
+  observe($$('.spec-row'), function (el) { el.classList.add('on'); }, { threshold: 0.5 });
+  observe($$('.fq'), function (el) { el.classList.add('on-rv'); }, { threshold: 0.25 });
+
+  // stagger the spec rows and the faq items so they cascade rather than pop
+  $$('.spec-row').forEach(function (el, i) { el.style.setProperty('--si', i); });
+  $$('.fq').forEach(function (el, i) { el.style.setProperty('--fi', i); });
+
+  /* ── header: stuck state + progress on its own bottom edge ───────────── */
+  var hdr = $('#hdr');
+  var ticking = false;
+  function onScroll() {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function () {
+      var y = window.scrollY;
+      var max = document.documentElement.scrollHeight - window.innerHeight;
+      hdr.classList.toggle('stuck', y > 8);
+      // scaleX is on the sticky header, so it is always in view.
+      hdr.style.setProperty('--p', max > 0 ? Math.min(y / max, 1) : 0);
+      ticking = false;
+    });
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+
+  /* ── hero shot: gentle scroll parallax ───────────────────────────────── */
+  var shot = $('#shot');
+  if (shot && !reduced) {
+    var shotTick = false;
+    var parallax = function () {
+      if (shotTick) return;
+      shotTick = true;
+      requestAnimationFrame(function () {
+        var r = shot.getBoundingClientRect();
+        if (r.top < window.innerHeight && r.bottom > 0) {
+          // 0 when the shot first enters, 1 when it has fully passed
+          var p = (window.innerHeight - r.top) / (window.innerHeight + r.height);
+          var clamped = Math.max(0, Math.min(1, p));
+          shot.style.transform =
+            'rotateX(' + ((0.5 - clamped) * 4).toFixed(2) + 'deg) ' +
+            'translateY(' + ((clamped - 0.5) * -20).toFixed(1) + 'px)';
+        }
+        shotTick = false;
+      });
+    };
+    window.addEventListener('scroll', parallax, { passive: true });
+    parallax();
+  }
+
+  /* ── cursor spotlight on the leak cards and the CTA ──────────────────── */
+  if (!reduced) {
+    $$('[data-spot]').concat($('#ctaCard') ? [$('#ctaCard')] : []).forEach(function (el) {
+      el.addEventListener('pointermove', function (e) {
+        var r = el.getBoundingClientRect();
+        el.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100) + '%');
+        el.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100) + '%');
+      });
+    });
+  }
+
+  /* ── arm a draw-on diff so it plays when it scrolls into view ────────── */
+  function arm(container) {
+    if (!container) return;
+    if (reduced || !hasIO) { container.classList.add('go-run'); return; }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { container.classList.add('go-run'); io.disconnect(); }
+      });
+    }, { threshold: 0.25 });
+    io.observe(container);
+    // guard so nothing can ever sit there un-struck
+    setTimeout(function () { container.classList.add('go-run'); }, 2400);
+  }
+
+  /* ── hero prompt ─────────────────────────────────────────────────────── */
+  $('#heroTxt').innerHTML =
+    '<span class="cut" style="--i:0">Jabari</span> <span class="add" style="--i:0">Person A</span>' +
+    ' and <span class="cut" style="--i:1">Embla</span> <span class="add" style="--i:1">Person B</span>' +
+    ' had a disagreement over the quarterly roadmap. ' +
+    '<span class="cut" style="--i:2">Jabari</span> <span class="add" style="--i:2">Person A</span>' +
+    ' said the timeline was unrealistic and that ' +
+    '<span class="cut" style="--i:3">Embla</span> <span class="add" style="--i:3">Person B</span>' +
+    ' was ignoring the engineering constraints. ' +
+    '<span class="cut" style="--i:4">Embla</span> <span class="add" style="--i:4">Person B</span>' +
+    ' said the date had been agreed in front of the whole company. Who handled it worse?';
+
+  /* ── the morph sentence ──────────────────────────────────────────────── */
+  var morph = $('#morph');
+  if (morph) {
+    if (reduced || !hasIO) { morph.classList.add('go'); }
+    else {
+      var mo = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting) { morph.classList.add('go'); mo.disconnect(); }
+        });
+      }, { threshold: 0.6 });
+      mo.observe(morph);
+    }
+  }
+
+  /* ── balance bars ────────────────────────────────────────────────────── */
+  var bars = $$('.bal-bar i');
+  var fillBars = function () {
+    bars.forEach(function (b, n) {
+      setTimeout(function () { b.style.width = b.dataset.w; }, reduced ? 0 : n * 150);
+    });
+  };
+  observe([$('.balance')], fillBars, { threshold: 0.4 });
+
+  /* ── the transformer ─────────────────────────────────────────────────── */
+  var EX = [
+    {
+      tab: 'Two names',
+      head: 'Evaluating a disagreement between two colleagues',
+      segs: [
+        {t:'cut',v:'Jabari'}, {t:'add',v:'Person A'}, {t:'text',v:' and '},
+        {t:'cut',v:'Embla'}, {t:'add',v:'Person B'},
+        {t:'text',v:' had a disagreement over the quarterly roadmap. '},
+        {t:'cut',v:'Jabari'}, {t:'add',v:'Person A'},
+        {t:'text',v:' said the timeline was unrealistic and that '},
+        {t:'cut',v:'Embla'}, {t:'add',v:'Person B'},
+        {t:'text',v:' was ignoring the engineering constraints. '},
+        {t:'cut',v:'Embla'}, {t:'add',v:'Person B'},
+        {t:'text',v:' said the date had been agreed in front of the whole company. Who handled it worse?'}
+      ],
+      note: '<b>Removed because</b> a Swahili name and a Norwegian name each carry an ethnicity, a gender, and a set of impressions that arrive with the sound of the name. None of it is part of the question. Person A and Person B stay fixed for the length of the prompt, so the model still knows it is reading about two people rather than one.'
+    },
+    {
+      tab: 'A job title',
+      head: 'Writing an all-hands note about a bad quarter',
+      segs: [
+        {t:'cut',v:"I'm the CEO of a 400-person logistics company and "},
+        {t:'text',v:'I need to write an all-hands note about a bad quarter. Here is my draft: We missed the number. I own that.'}
+      ],
+      note: '<b>Removed because</b> nothing in “write an all-hands note” depends on the role. “CEO” is also a term the model reads as male at base rates, so a gender arrives that nobody wrote down. When the role is the subject of the task — “write the part of the CEO letter that covers the miss” — Neutral leaves it in and works on the correlated read instead.'
+    },
+    {
+      tab: 'One essay',
+      head: 'Getting a college essay graded',
+      segs: [
+        {t:'cut',v:"Here's my"}, {t:'add',v:'Here are five'},
+        {t:'text',v:' college freshman '},
+        {t:'cut',v:'essay'}, {t:'add',v:'essays from one class'},
+        {t:'text',v:'. Read '},
+        {t:'cut',v:'it'}, {t:'add',v:'each one'},
+        {t:'text',v:' and tell me what grade it deserves.'}
+      ],
+      note: '<b>Nothing was removed here.</b> The leak is structural: one essay sent for grading reads as the writer’s own, and the model answers the way a teacher answers a student. Neutral writes four comparison essays in the same register, shuffles the position, and sends five. That adds cost — four more essays to read — so it takes this route only when removal is not available.'
+    },
+    {
+      tab: 'A relationship',
+      head: 'Working out how to open a difficult conversation',
+      segs: [
+        {t:'cut',v:'My boyfriend'}, {t:'add',v:'Person A'},
+        {t:'text',v:' and I have been together two years. '},
+        {t:'cut',v:'He'}, {t:'add',v:'They'},
+        {t:'text',v:' wants to move cities for '},
+        {t:'cut',v:'his'}, {t:'add',v:'their'},
+        {t:'text',v:' job and I do not want to leave mine. How do I tell '},
+        {t:'cut',v:'him'}, {t:'add',v:'them'},
+        {t:'text',v:' without it turning into a fight?'}
+      ],
+      note: '<b>Removed because</b> “boyfriend” tells the model the writer is a woman and that both people are young, and the pronouns say it five more times. The question is about how to open a conversation, and none of the rest is load-bearing.'
+    }
+  ];
+
+  var tabsEl = $('#tabs'), caseEl = $('#caseLine'), statEl = $('#statLine');
+  var wEl = $('#txtWritten'), mEl = $('#txtModel'), noteEl = $('#noteLine');
+  var segD = $('#vw-diff'), segC = $('#vw-clean');
+  var cur = 0, view = 'diff';
+
+  EX.forEach(function (ex, i) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = ex.tab;
+    b.addEventListener('click', function () { cur = i; draw(true); });
+    tabsEl.appendChild(b);
+  });
+
+  // replay=false on first paint: the pane is below the fold, so arm() plays
+  // the draw-on when it scrolls into view instead of it playing to nobody.
+  function draw(replay) {
+    var ex = EX[cur];
+    $$('button', tabsEl).forEach(function (b, i) {
+      b.setAttribute('aria-pressed', String(i === cur));
+    });
+
+    var written = '', model = '';
+    for (var i = 0; i < ex.segs.length; i++) {
+      var s = ex.segs[i];
+      if (s.t === 'text') {
+        written += esc(s.v); model += esc(s.v);
+      } else if (s.t === 'cut') {
+        written += esc(s.v);
+        if (view === 'diff') model += '<span class="cut" style="--i:' + i + '">' + esc(s.v) + '</span>';
+      } else if (view === 'diff') {
+        model += '<span class="add" style="--i:' + i + '">' + esc(s.v) + '</span>';
+      } else {
+        model += esc(s.v);
+      }
+    }
+
+    wEl.innerHTML = written;
+    mEl.innerHTML = model;
+
+    // Replay the draw-on: strip the class, force a reflow, re-add it.
+    mEl.classList.remove('go-run');
+    void mEl.offsetWidth;
+    if (replay) mEl.classList.add('go-run');
+
+    var n = ex.segs.filter(function (s) { return s.t === 'cut'; }).length;
+    caseEl.textContent = ex.head;
+    statEl.textContent = n + (n === 1 ? ' span rewritten' : ' spans rewritten');
+    noteEl.innerHTML = ex.note;
+
+    segD.setAttribute('aria-pressed', String(view === 'diff'));
+    segC.setAttribute('aria-pressed', String(view === 'clean'));
+  }
+
+  segD.addEventListener('click', function () { view = 'diff'; draw(true); });
+  segC.addEventListener('click', function () { view = 'clean'; draw(true); });
+
+  /* ── return pass ─────────────────────────────────────────────────────── */
+  var ANS = {
+    polished: 'Your second paragraph is the strongest thing in the essay. You set up a contradiction in the first sentence and pay it off in the last, which is the harder version of that move. The third paragraph is where you lose it: you make the claim twice and support it once. State it once and give it the evidence.',
+    raw: 'Essay 1 opens with a contradiction and resolves it by the final sentence, which is the difficult version of that structure. The third paragraph repeats its claim rather than supporting it. The writer should state the claim once and supply the evidence.'
+  };
+  var ansBody = $('#ansBody'), ansP = $('#ans-polished'), ansR = $('#ans-raw');
+  var ansView = 'polished';
+
+  function drawAns() {
+    ansBody.innerHTML = ansView === 'raw'
+      ? esc(ANS.raw)
+      : esc(ANS.polished).replace(/\b(?:You|Your|you|your)\b/g, function (m) {
+          return '<span class="u">' + m + '</span>';
+        });
+    ansBody.classList.remove('slide-in');
+    void ansBody.offsetWidth;
+    ansBody.classList.add('slide-in');
+    ansP.setAttribute('aria-pressed', String(ansView === 'polished'));
+    ansR.setAttribute('aria-pressed', String(ansView === 'raw'));
+  }
+  ansP.addEventListener('click', function () { ansView = 'polished'; drawAns(); });
+  ansR.addEventListener('click', function () { ansView = 'raw'; drawAns(); });
+
+  /* ── pinned method: stage switching ──────────────────────────────────── */
+  var stages = $$('.stage'), steps = $$('.step'), railBtns = $$('#rail button');
+
+  function setStage(n) {
+    stages.forEach(function (s) { s.classList.toggle('on', +s.dataset.stage === n); });
+    railBtns.forEach(function (b) { b.classList.toggle('on', +b.dataset.goto === n); });
+  }
+
+  railBtns.forEach(function (b) {
+    b.addEventListener('click', function () {
+      var n = +b.dataset.goto;
+      setStage(n);
+      var target = steps[n];
+      if (!target) return;
+      if (window.innerWidth >= 940) {
+        var top = target.getBoundingClientRect().top + window.scrollY
+                - window.innerHeight / 2 + target.offsetHeight / 2;
+        window.scrollTo({ top: top, behavior: reduced ? 'auto' : 'smooth' });
+      } else {
+        target.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' });
+      }
+    });
+  });
+
+  if (hasIO && window.innerWidth >= 940) {
+    var so = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) setStage(+e.target.dataset.step);
+      });
+    }, { rootMargin: '-45% 0px -45% 0px', threshold: 0 });
+    steps.forEach(function (s) { so.observe(s); });
+  }
+
+  /* ── faq ─────────────────────────────────────────────────────────────── */
+  $$('.fq').forEach(function (fq) {
+    var q = $('.fq-q', fq);
+    q.addEventListener('click', function () {
+      var open = fq.classList.toggle('on');
+      q.setAttribute('aria-expanded', String(open));
+    });
+  });
+
+  /* ── init ────────────────────────────────────────────────────────────── */
+  draw(false);
+  drawAns();
+  arm($('#heroTxt'));
+  arm(mEl);
+  onScroll();
+})();
+</script>
