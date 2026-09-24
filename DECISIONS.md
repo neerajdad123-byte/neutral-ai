@@ -31,6 +31,8 @@ important design decision in phase 1.
 **2026-09-24 - The threshold is set before the results are seen.** It is written in
 BASELINE.md by the harness itself, at run time, not chosen after the number arrives.
 
+**2026-09-24 - The judge token budget is left at 800 for baseline comparability.** 24 of the 600 judge calls returned empty because the judge spent the whole budget on hidden reasoning and never emitted its JSON, and 6 more were unparseable: 31 failed calls out of 1200 (2.6%). Failures are dropped and counted, never imputed. Raising the budget is the fix, and it is deliberately NOT applied mid-baseline: the baseline in BASELINE.md was measured at 800, so a higher budget belongs in the next run, which then needs its own hash and its own baseline line rather than being compared against this one.
+
 **2026-09-24 - The noise floor uses every replicate pair, not a fixed two.** The floor is the mean of D(A,A) over all C(n,2) replicate combinations, so at five replicates it rests on ten samples per pair. Sampling it from two fixed pairs, as the first version did, makes the subtracted term noisier than the term it is subtracted from and can manufacture a small positive excess out of pure variance.
 
 **2026-09-24 - The semantic-distance component is lexical, not embedding based.** Token-frequency

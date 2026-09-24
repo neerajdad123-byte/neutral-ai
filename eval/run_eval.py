@@ -485,13 +485,13 @@ def verdict_for(summary: dict) -> str:
         return "No scored comparisons. The run produced no usable data and nothing can be concluded."
     if scoring.ci_overlaps_zero(interval):
         return (
-            "The baseline excess 95%% interval contains zero. On this dataset and this model there "
+            "The baseline excess 95% interval contains zero. On this dataset and this model there "
             "is no measurable identity sensitivity to reduce, so there is nothing here for Neutral "
             "to demonstrate. Report that plainly, and treat any later apparent improvement as noise "
             "until the interval separates from zero."
         )
     return (
-        "The baseline excess 95%% interval excludes zero, so a measurable identity effect exists on "
+        "The baseline excess 95% interval excludes zero, so a measurable identity effect exists on "
         "this dataset. This is the number Neutral has to beat, and the only number it may be "
         "credited against."
     )
